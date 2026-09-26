@@ -674,6 +674,25 @@ ssh folio-prod "docker ps --filter label=com.docker.compose.project=folio --form
 gh run list --repo flowitup/atelier --workflow deploy.yml --limit 1
 ```
 
+### Owner setup progress (2026-09-26, done in the owner's Chrome at their request)
+All secrets were copied by the owner straight into their password manager. None were read, screenshotted or recorded here.
+- **Repo:** GitHub `flowitup/atelier` was created (private) and pushed at the owner's request, ahead of step 17. Its `production` environment and secrets are still to do.
+- **Modal (step 11):**
+  - Tokens `atelier-runtime` and `atelier-ci` were created.
+  - The workspace spend limit is set to **$20**, the maximum Modal allows on the Starter plan. The owner chose $50, which Modal refused; the Starter plan includes $30 of monthly credits.
+  - The workspace had **no proxy-auth tokens**, so there was nothing to revoke. Service users would need the Team plan.
+- **Cloudflare Access (step 10):**
+  - Service token `atelier-plugin` created with a 1-year duration (expires around 2027-09-26).
+  - Self-hosted application `atelier` for `atelier.flowitup.com`, with the policies "Atelier owner" (Allow, one email: the owner's chosen login address, which goes into `.env` and is not recorded in the repo) and "Atelier Claude plugin" (Service Auth, `atelier-plugin`).
+  - Cookie SameSite is **Lax**, identity providers are all available ones, and the session lasts 24 h.
+  - The AUD tag was read from the app's settings and goes into `.env`.
+  - LearnFlow's separate "Allowed emails" policy was left untouched.
+- **Hetzner (step 12):**
+  - Volume `atelier-data` (ID 106963035) was created: 50 GB in Falkenstein, attached to `folio-prod-1` with manual mounting, so it is neither formatted nor mounted yet.
+  - It costs €3.43/month including VAT (€2.86 before VAT).
+  - `folio-prod-1` is a CX33 in `eu-central`.
+- **Still to do:** step 8 (key audit), step 9 (LearnFlow key), steps 13–21, the rotation reminder, and recording the expiry date in `docs/deployment-guide.md` once that guide exists.
+
 ## Risk Assessment
 
 <!-- Updated: Red Team 2026-09-25 - F3 co-tenant root keys -->
