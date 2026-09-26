@@ -39,7 +39,7 @@ the whole git history on every change. This table records names and places, neve
 | Deploy key `atelier-deploy` (private half) | GitHub `production` secret `ATELIER_DEPLOY_SSH_KEY` only; the laptop copy was deleted | the Deploy workflow | New key; replace its line in root's `authorized_keys` (same forced command); set the secret |
 | LearnFlow key `learnflow-ci` (private half) | GitHub `flowitup/learnflow` repository secret `SSH_PRIVATE_KEY` only; the laptop copy was deleted | LearnFlow's deploy | New key; replace its `rrsync` line; set the secret |
 | Public halves of the server keys | root's `authorized_keys` on folio-prod-1 (see the audit table below) | sshd | — |
-| Owner admin key `mac-admin-folio-prod-2026-09` | `~/.ssh/folio-prod-admin` on the owner's Mac (0600, no passphrase yet) | the `folio-prod` SSH alias | New key; add, test, then remove the old line |
+| Owner admin key `mac-admin-folio-prod-2026-09` | `~/.ssh/folio-prod-admin` on the owner's Mac (0600; passphrase set 2026-09-27 and kept in the macOS Keychain, with `UseKeychain`/`AddKeysToAgent` on the `folio-prod` alias) | the `folio-prod` SSH alias | New key; add, test, then remove the old line |
 | The owner's own Modal CLI token (created 2026-09-25, unnamed) | `~/.modal.toml` on the owner's Mac, profile `yaiba2307` | the owner's `modal` commands | `modal token new` |
 | GitHub CLI logins | the macOS Keychain, through `gh` | `gh` commands | `gh auth login` |
 | Tunnel credentials and origin certificate | `/etc/cloudflared/` on folio-prod-1 (Folio's existing setup) | cloudflared | — |
