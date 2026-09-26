@@ -1,0 +1,13 @@
+Vendored static assets. Update by downloading the new version, checking its SHA-256 against the
+package's published hash (https://data.jsdelivr.com/v1/packages/npm/<pkg>@<version>?structure=flat),
+and replacing the line below.
+
+htmx.min.js
+  package: htmx.org 2.0.11 (file dist/htmx.min.js)
+  source:  https://cdn.jsdelivr.net/npm/htmx.org@2.0.11/dist/htmx.min.js
+  sha256:  d6fdc75f204e6bdefa99b69bf1e6d4ac69b8a364f77929f45c13476b4000f717
+
+pico.min.css
+  package: @picocss/pico 2.1.1 (file css/pico.min.css)
+  source:  https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css
+  sha256:  fbc9a63fc9fc9f72d12fd7fc9806e11fa9f77ae4f9cad146b27003a1119ba3db

@@ -6,6 +6,7 @@ import dataclasses
 import hashlib
 import io
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from PIL import Image
@@ -96,6 +97,45 @@ def test_delete_files_removes_both_png_and_thumbnail(settings, png_bytes):
     storage.delete_files(settings.data_dir, saved)
     assert not (settings.data_dir / saved.file_png).exists()
     assert not (settings.data_dir / saved.file_thumb).exists()
+
+
+def test_resolve_under_returns_the_resolved_path_for_a_normal_relative_path(settings):
+    (settings.data_dir / "images").mkdir()
+    target = settings.data_dir / "images" / "job-1.png"
+    target.write_bytes(b"x")
+    resolved = storage.resolve_under(settings.data_dir, "images/job-1.png")
+    assert resolved == target.resolve()
+
+
+def test_resolve_under_refuses_a_relative_traversal_outside_data_dir(settings):
+    assert storage.resolve_under(settings.data_dir, "../../etc/passwd") is None
+
+
+def test_resolve_under_refuses_an_absolute_path_outside_data_dir(settings, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside") / "secret.bin"
+    outside.write_bytes(b"secret")
+    # An absolute right-hand side silently discards data_dir under the `/` operator, so this proves
+    # resolve_under catches that case explicitly rather than relying on it never happening.
+    assert storage.resolve_under(settings.data_dir, str(outside)) is None
+
+
+def test_resolve_under_refuses_a_symlink_that_escapes_data_dir(settings, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside") / "secret.bin"
+    outside.write_bytes(b"secret")
+    link = settings.data_dir / "escape.bin"
+    link.symlink_to(outside)
+    assert storage.resolve_under(settings.data_dir, "escape.bin") is None
+
+
+def test_delete_files_refuses_to_unlink_a_file_outside_data_dir(settings, tmp_path_factory):
+    outside = tmp_path_factory.mktemp("outside") / "secret.bin"
+    outside.write_bytes(b"secret")
+    saved = storage.SavedImage(
+        file_png=Path(str(outside)), file_thumb=Path("images/does-not-exist.webp"),
+        width=1, height=1, bytes=6, sha256="x",
+    )
+    storage.delete_files(settings.data_dir, saved)
+    assert outside.exists()  # never unlinked: it never resolved under data_dir
 
 
 def test_remove_partial_files_deletes_this_and_last_months_leftovers_only(settings):

@@ -120,10 +120,25 @@ def save_result(data_dir: Path, job_id: int, data: bytes) -> SavedImage:
     )
 
 
+def resolve_under(data_dir: Path, relative: str | Path) -> Path | None:
+    """Resolves a stored relative path under data_dir, following symlinks, and returns None if the
+    result would fall outside data_dir. A corrupted row, an absolute path stored by a future bug (an
+    absolute right-hand side silently discards data_dir under the `/` operator), or a symlink planted
+    inside data_dir that points outside it must never turn into a read or a delete outside data_dir."""
+    data_dir_resolved = data_dir.resolve()
+    resolved = (data_dir_resolved / relative).resolve()
+    if not resolved.is_relative_to(data_dir_resolved):
+        return None
+    return resolved
+
+
 def delete_files(data_dir: Path, saved: SavedImage) -> None:
-    """Removes a completed result's files, e.g. when a job was cancelled before it could be recorded."""
-    (data_dir / saved.file_png).unlink(missing_ok=True)
-    (data_dir / saved.file_thumb).unlink(missing_ok=True)
+    """Removes a completed result's files, e.g. when a job was cancelled before it could be recorded.
+    Refuses to unlink anything that resolves outside data_dir."""
+    for relative in (saved.file_png, saved.file_thumb):
+        resolved = resolve_under(data_dir, relative)
+        if resolved is not None:
+            resolved.unlink(missing_ok=True)
 
 
 def _job_month_dirs(data_dir: Path, now: datetime | None = None) -> tuple[Path, Path]:

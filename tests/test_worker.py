@@ -721,6 +721,7 @@ def test_dispatch_lock_prevents_a_concurrent_tick_from_double_spawning(conn, reg
 
 def test_run_starts_loops_that_stop_cleanly_cancels(registry, settings, fake_gateway):
     worker = Worker(settings, registry, fake_gateway)
+    assert worker.started_at is None
 
     async def start_and_stop():
         await worker.run()
@@ -730,3 +731,4 @@ def test_run_starts_loops_that_stop_cleanly_cancels(registry, settings, fake_gat
         assert worker._tasks == []
 
     asyncio.run(start_and_stop())
+    assert worker.started_at is not None  # recorded once run() is called, regardless of any tick

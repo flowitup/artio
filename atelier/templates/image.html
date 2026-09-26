@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Image {{ image.id }} &middot; Atelier{% endblock %}
+{% block content %}
+<h1>Image {{ image.id }}</h1>
+<img class="image-full" src="/images/{{ image.id }}/file" alt="{{ image.prompt | truncate(60) }}">
+<table>
+  <tbody>
+    <tr><th>Model</th><td>{{ image.model_id }}</td></tr>
+    <tr><th>Prompt</th><td>{{ image.prompt }}</td></tr>
+    <tr><th>Negative</th><td>{{ image.negative }}</td></tr>
+    <tr><th>Seed</th><td>{{ image.seed }}</td></tr>
+    <tr><th>Size</th><td>{{ image.width }} &times; {{ image.height }}</td></tr>
+    <tr><th>Steps</th><td>{{ image.steps }}</td></tr>
+    <tr><th>CFG</th><td>{{ image.cfg }}</td></tr>
+    <tr><th>Duration</th><td>{{ (image.duration_s | round(1)) if image.duration_s is not none else '—' }}s</td></tr>
+    <tr><th>Estimated cost</th><td>${{ '%.4f' % image.est_cost_usd if image.est_cost_usd is not none else '—' }}</td></tr>
+    <tr><th>Created</th><td>{{ image.created_at | localtime }}</td></tr>
+    <tr><th>Batch</th><td><a href="/batches/{{ image.batch_id }}">View batch</a></td></tr>
+  </tbody>
+</table>
+<p>
+  <a href="/images/{{ image.id }}/file" download role="button">Download</a>
+  <a href="/generate?from={{ image.id }}" role="button" class="secondary">Remix</a>
+  <button hx-post="/images/{{ image.id }}/delete"
+          hx-confirm="Delete this image? It is removed from Atelier now, with its prompt and job record; nightly backups keep a copy for up to 6 months."
+          class="contrast">Delete</button>
+</p>
+{% endblock %}

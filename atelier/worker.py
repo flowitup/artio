@@ -58,6 +58,7 @@ class Worker:
         self.locks: dict[str, asyncio.Lock] = defaultdict(asyncio.Lock)
         self.paused: dict[str, str | None] = {}
         self.alerts: dict[str, str] = {}
+        self.started_at: float | None = None
         self.last_dispatch_tick: float | None = None
         self.last_poll_tick: float | None = None
 
@@ -234,7 +235,11 @@ class Worker:
 
     async def run(self) -> None:
         """Starts both loops as background tasks. A loop exception is logged, never fatal; per-job
-        errors are already isolated inside poll_once/dispatch_once and never reach this level."""
+        errors are already isolated inside poll_once/dispatch_once and never reach this level.
+
+        Records started_at before creating the tasks, so a caller (e.g. /healthz) can tell "never
+        started" (started_at is None) apart from "started but hasn't completed a tick yet"."""
+        self.started_at = self.clock()
 
         async def loop(fn: Callable, interval: float) -> None:
             while True:

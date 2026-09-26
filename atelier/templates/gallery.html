@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Gallery &middot; Atelier{% endblock %}
+{% block content %}
+<h1>Gallery</h1>
+<form method="get" action="/gallery">
+  <fieldset role="group">
+    <select name="model">
+      <option value="">All models</option>
+      {% for m in models %}
+      <option value="{{ m.id }}" {% if m.id == selected_model %}selected{% endif %}>{{ m.label }}</option>
+      {% endfor %}
+    </select>
+    <button type="submit">Filter</button>
+  </fieldset>
+</form>
+
+{% if not groups %}
+<p>No images yet.</p>
+{% endif %}
+
+{% for group in groups %}
+<section>
+  <header>
+    <a href="/batches/{{ group.batch_id }}"><strong>{{ group.prompt | truncate(80) }}</strong></a>
+    &middot; {{ group.model_id }}
+    &middot; {{ group.images | length }} image{{ 's' if group.images | length != 1 else '' }}
+    &middot; {{ group.created_at | localtime }}
+  </header>
+  <div class="thumb-grid">
+    {% for image in group.images %}
+    {% include "partials/image_card.html" %}
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<nav>
+  <ul>
+    {% if page > 1 %}<li><a href="/gallery?model={{ selected_model or '' }}&page={{ page - 1 }}">Previous</a></li>{% endif %}
+    {% if groups %}<li><a href="/gallery?model={{ selected_model or '' }}&page={{ page + 1 }}">Next</a></li>{% endif %}
+  </ul>
+</nav>
+{% endblock %}

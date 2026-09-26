@@ -1,0 +1,43 @@
+{% set schema = model.param_schema %}
+<fieldset>
+  <legend>Size</legend>
+  {% for preset in schema.presets %}
+  <label>
+    <input type="radio" name="preset" value="{{ preset.name }}"
+           {% if (values.preset or schema.default_preset) == preset.name %}checked{% endif %}>
+    {{ preset.name }} ({{ preset.width }}&times;{{ preset.height }})
+  </label>
+  {% endfor %}
+  <label>
+    <input type="radio" name="preset" value="custom" {% if values.preset == 'custom' %}checked{% endif %}>
+    Custom:
+    <input type="number" name="width" min="{{ schema.size_min }}" max="{{ schema.size_max }}"
+           step="{{ schema.size_multiple }}" value="{{ values.width or schema.default_size().width }}">
+    &times;
+    <input type="number" name="height" min="{{ schema.size_min }}" max="{{ schema.size_max }}"
+           step="{{ schema.size_multiple }}" value="{{ values.height or schema.default_size().height }}">
+  </label>
+</fieldset>
+
+<label for="steps">Steps</label>
+<input type="number" id="steps" name="steps" min="{{ schema.steps_min }}" max="{{ schema.steps_max }}"
+       value="{{ values.steps or schema.steps_default }}">
+
+<label for="cfg">CFG</label>
+{% set cfg_value = values.get('cfg') %}
+<input type="number" id="cfg" name="cfg" min="{{ schema.cfg_min }}" max="{{ schema.cfg_max }}" step="0.1"
+       value="{{ cfg_value if cfg_value is not none else schema.cfg_default }}">
+
+<fieldset>
+  <legend>Seed</legend>
+  <label>
+    <input type="radio" name="seed_mode" value="random" {% if (values.seed_mode or 'random') == 'random' %}checked{% endif %}>
+    Random
+  </label>
+  <label>
+    <input type="radio" name="seed_mode" value="fixed" {% if values.seed_mode == 'fixed' %}checked{% endif %}>
+    Fixed:
+    {% set seed_value = values.get('seed') %}
+    <input type="number" name="seed" min="0" value="{{ seed_value if seed_value is not none else '' }}">
+  </label>
+</fieldset>

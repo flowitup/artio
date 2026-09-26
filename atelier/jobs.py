@@ -289,3 +289,33 @@ def next_queued(conn: sqlite3.Connection, backend_id: str, limit: int) -> list[s
 
 def list_submitted(conn: sqlite3.Connection) -> list[sqlite3.Row]:
     return conn.execute("SELECT * FROM jobs WHERE status = 'submitted' ORDER BY id").fetchall()
+
+
+def list_recent(conn: sqlite3.Connection, *, batch_id: int | None = None, limit: int = 50) -> list[sqlite3.Row]:
+    """Jobs for the queue view, each left-joined to its image (NULL unless the job is done). One
+    batch's jobs, newest first, when batch_id is given; otherwise the most recent jobs across every
+    batch, capped at limit."""
+    if batch_id is not None:
+        return conn.execute(
+            "SELECT jobs.*, images.id AS image_id FROM jobs LEFT JOIN images ON images.job_id = jobs.id "
+            "WHERE jobs.batch_id = ? ORDER BY jobs.id DESC",
+            (batch_id,),
+        ).fetchall()
+    return conn.execute(
+        "SELECT jobs.*, images.id AS image_id FROM jobs LEFT JOIN images ON images.job_id = jobs.id "
+        "ORDER BY jobs.id DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+
+
+def has_active(conn: sqlite3.Connection, *, batch_id: int | None = None) -> bool:
+    """True while some job the queue view would show is still queued or submitted. The /queue/rows
+    partial polls while this is true and stops (286) once it turns false."""
+    if batch_id is not None:
+        row = conn.execute(
+            "SELECT 1 FROM jobs WHERE batch_id = ? AND status IN ('queued', 'submitted') LIMIT 1",
+            (batch_id,),
+        ).fetchone()
+    else:
+        row = conn.execute("SELECT 1 FROM jobs WHERE status IN ('queued', 'submitted') LIMIT 1").fetchone()
+    return row is not None

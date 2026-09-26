@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="htmx-config" content='{"includeIndicatorStyles":false}'>
+  <title>{% block title %}Atelier{% endblock %}</title>
+  <link rel="stylesheet" href="/static/pico.min.css">
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js"></script>
+</head>
+<body>
+  <header class="container">
+    <nav>
+      <ul>
+        <li><strong>Atelier</strong></li>
+      </ul>
+      <ul>
+        <li><a href="/generate">Generate</a></li>
+        <li><a href="/queue">Queue</a></li>
+        <li><a href="/gallery">Gallery</a></li>
+      </ul>
+    </nav>
+    <div id="header-status" hx-get="/partials/header-status" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+  </header>
+  <main class="container">
+    <div id="flash"></div>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

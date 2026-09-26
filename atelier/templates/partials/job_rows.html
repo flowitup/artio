@@ -1,0 +1,60 @@
+<div id="jobs-panel"
+     {% if oob %}hx-swap-oob="true"{% endif %}
+     {% if active %}
+     hx-get="/queue/rows{% if batch_id %}?batch={{ batch_id }}{% endif %}"
+     hx-trigger="every 2s"
+     {% endif %}
+     hx-swap="outerHTML">
+  {% if not jobs %}
+  <p>No jobs yet.</p>
+  {% else %}
+  <table>
+    <thead>
+      <tr>
+        <th>Status</th>
+        <th>Model</th>
+        <th>Prompt</th>
+        <th>Seed</th>
+        <th>Elapsed</th>
+        <th>Result</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for job in jobs %}
+      <tr>
+        <td>
+          {% if job.status == 'submitted' %}running{% else %}{{ job.status }}{% endif %}
+          {% if job.status == 'queued' and job.error %}<br><small>waiting: {{ job.error }}</small>{% endif %}
+          {% if job.status == 'cancelled' and job.was_submitted %}
+          <br><small>Cancelled. The GPU may still finish this render; its result will be discarded.</small>
+          {% elif job.status == 'cancelled' %}
+          <br><small>Cancelled.</small>
+          {% endif %}
+          {% if job.status == 'failed' and job.error %}<br><small class="error-text">{{ job.error }}</small>{% endif %}
+        </td>
+        <td>{{ job.model_id }}</td>
+        <td>{{ job.prompt_excerpt }}</td>
+        <td>{{ job.seed }}</td>
+        <td>{% if job.status == 'cancelled' %}—{% else %}{{ job.elapsed_s }}s{% endif %}</td>
+        <td>
+          {% if job.image_id %}
+          <a href="/images/{{ job.image_id }}"><img class="thumb" src="/images/{{ job.image_id }}/thumb" alt=""></a>
+          {% endif %}
+        </td>
+        <td>
+          {% if job.status in ('queued', 'submitted') %}
+          <button hx-post="/jobs/{{ job.id }}/cancel{% if batch_id %}?batch={{ batch_id }}{% endif %}"
+                  hx-target="#jobs-panel" hx-swap="outerHTML">Cancel</button>
+          {% endif %}
+          {% if job.status in ('failed', 'cancelled') %}
+          <button hx-post="/jobs/{{ job.id }}/retry{% if batch_id %}?batch={{ batch_id }}{% endif %}"
+                  hx-target="#jobs-panel" hx-swap="outerHTML">Retry</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
