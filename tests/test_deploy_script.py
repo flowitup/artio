@@ -144,8 +144,28 @@ def main(argv):
             print(read_text(name), end="")
             return 0
         if sub == "rm":
+            # Like the real daemon: an unknown reference is an error; a reference listed in
+            # rm-refused (an image still in use) stays and is an error; with the containerd image
+            # store (the server's), removing a tag also drops that image's digest references.
             append_line("rm-calls", " ".join(sub_rest))
-            return 0
+            images = read_json("images.json", {})
+            refused = read_text("rm-refused").split()
+            containerd = (state / "containerd-store").exists()
+            status = 0
+            for ref in sub_rest:
+                if ref in refused:
+                    print(f"Error response from daemon: conflict: unable to remove {ref}: in use", file=sys.stderr)
+                    status = 1
+                elif ref in images:
+                    info = images.pop(ref)
+                    if containerd:
+                        for digest_ref in info.get("repo_digests", []):
+                            images.pop(digest_ref, None)
+                else:
+                    print(f"Error response from daemon: No such image: {ref}", file=sys.stderr)
+                    status = 1
+            (state / "images.json").write_text(json.dumps(images))
+            return status
 
     if cmd == "compose":
         # Skip global compose flags (-f <file>, -p <name>) to find the actual verb.
@@ -361,6 +381,9 @@ class Harness:
         p = self.state_dir / "unhealthy-tags"
         existing = p.read_text() if p.exists() else ""
         p.write_text(existing + tag + "\n")
+
+    def image_exists(self, ref: str) -> bool:
+        return ref in self._images()
 
     def set_ls_tags(self, tags: list[str]) -> None:
         (self.state_dir / "ls-tags").write_text("\n".join(tags) + "\n")
@@ -722,6 +745,77 @@ def test_prune_removes_only_the_oldest_atelier_tags_and_sweeps_dangling(harness)
     assert removed_tags == {o2, o3}  # o1 (the single newest-other) survives; current/previous were never candidates
     assert not any("folio" in call for call in removed)  # never another repository's reference
     assert any(call == "dangling0000" for call in removed)  # the dangling sweep also ran
+
+
+def _old_images_with_digests(harness, tags, *, extra_digest: str | None = None) -> None:
+    """Registers each tag with its own Atelier digest reference (plus an optional foreign one), all
+    as existing images, the way a real host lists them after earlier deploys."""
+    for tag in tags:
+        own = f"{IMAGE}@sha256:{tag[0] * 64}"
+        harness.set_repo_digests(f"{IMAGE}:{tag}", [own] + ([extra_digest] if extra_digest else []))
+        harness.mark_tag_exists(own)
+    if extra_digest:
+        harness.mark_tag_exists(extra_digest)
+
+
+def test_prune_logs_each_removal_when_the_tag_takes_its_digest_with_it(harness):
+    """On the containerd image store (the server's), removing an image's last tag also removes its
+    digest reference. Prune must not then remove that reference a second time: no daemon error reaches
+    the deploy's output, and each removal is logged."""
+    (harness.state_dir / "containerd-store").touch()
+    o1, o2 = "1" * 40, "2" * 40
+    harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2])
+    _old_images_with_digests(harness, (o1, o2))
+    harness.write_tag("current-tag", PREV_SHA)
+    harness.set_image(f"{IMAGE}@{DIGEST}", revision=NEW_SHA)
+
+    result = harness.run(ssh_command=f"deploy {NEW_SHA} {DIGEST}", stdin=f"{TOKEN}\n{USER}\n")
+
+    assert result.returncode == 0, result.stderr
+    assert "No such image" not in result.stderr
+    assert f"pruned {o2}" in result.stderr.splitlines()
+    assert not harness.image_exists(f"{IMAGE}:{o2}")
+    assert not harness.image_exists(f"{IMAGE}@sha256:{'2' * 64}")
+    assert harness.image_exists(f"{IMAGE}:{o1}")
+
+
+def test_prune_removes_digest_references_the_classic_store_leaves_behind(harness):
+    """On the classic image store, removing a tag leaves the image's digest reference, which would
+    keep its layers on the shared disk. Prune removes Atelier's own leftover reference too, and never
+    another repository's."""
+    o1, o2 = "1" * 40, "2" * 40
+    folio_digest = f"europe-west1-docker.pkg.dev/x/folio@sha256:{'f' * 64}"
+    harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2])
+    _old_images_with_digests(harness, (o1, o2), extra_digest=folio_digest)
+    harness.write_tag("current-tag", PREV_SHA)
+    harness.set_image(f"{IMAGE}@{DIGEST}", revision=NEW_SHA)
+
+    result = harness.run(ssh_command=f"deploy {NEW_SHA} {DIGEST}", stdin=f"{TOKEN}\n{USER}\n")
+
+    assert result.returncode == 0, result.stderr
+    assert not harness.image_exists(f"{IMAGE}:{o2}")
+    assert not harness.image_exists(f"{IMAGE}@sha256:{'2' * 64}")
+    assert harness.image_exists(folio_digest)
+    assert harness.image_exists(f"{IMAGE}:{o1}") and harness.image_exists(f"{IMAGE}@sha256:{'1' * 64}")
+    assert f"pruned {o2}" in result.stderr.splitlines()
+
+
+def test_prune_reports_an_image_it_could_not_remove_without_failing_the_deploy(harness):
+    """An old image the daemon refuses to remove (for example, still used by a stopped container)
+    is logged as not pruned, and the deploy that already succeeded still reports success."""
+    o1, o2 = "1" * 40, "2" * 40
+    harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2])
+    _old_images_with_digests(harness, (o1, o2))
+    (harness.state_dir / "rm-refused").write_text(f"{IMAGE}:{o2}\n")
+    harness.write_tag("current-tag", PREV_SHA)
+    harness.set_image(f"{IMAGE}@{DIGEST}", revision=NEW_SHA)
+
+    result = harness.run(ssh_command=f"deploy {NEW_SHA} {DIGEST}", stdin=f"{TOKEN}\n{USER}\n")
+
+    assert result.returncode == 0, result.stderr
+    assert f"could not prune {o2}" in result.stderr.splitlines()
+    assert f"pruned {o2}" not in result.stderr.splitlines()
+    assert harness.image_exists(f"{IMAGE}:{o2}")
 
 
 def test_prune_is_scoped_to_its_own_repository(harness):

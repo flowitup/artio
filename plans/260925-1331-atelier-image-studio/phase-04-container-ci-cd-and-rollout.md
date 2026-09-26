@@ -781,6 +781,12 @@ All secrets were copied by the owner straight into their password manager. None 
   - The first dispatch failed with "Token ID is malformed": the `atelier-ci` values the owner had pasted into GitHub weren't a real token, and its secret was lost.
   - Claude deleted `atelier-ci` (the owner said yes) and created `atelier-ci-2`. The owner saved it through a hidden-prompt `gh secret set` helper.
   - The re-run (36278211775) was green, and `modal app list` shows `qwen21-uc` deployed.
+- **Prune fix (after the fourth deploy):**
+  - The first real prune removed the oldest image correctly, but it logged no `pruned` line and put "Error response from daemon: No such image" into the CI log.
+  - Cause: the server's containerd image store drops an image's digest references together with its last tag, so the second removal in the same `docker image rm` call failed.
+  - Fix: `prune` now removes the tag first, then only digest references that still exist (the classic store keeps them). It logs `pruned` or `could not prune` according to whether the tag is really gone.
+  - Three hermetic tests model both stores and a refused removal, and the new containerd and refused-removal tests fail against the old script. There are 43 deploy-script tests, and the harness catches 24 of 24 mutants.
+  - The server copy was replaced after a backup (`deploy.sh.bak-20260926T233038Z`), with matching checksums.
 - **Owner decisions:** auto-renew for `flowitup.com` stays **off**; it expires 2027-04-07 and is renewed by hand. The credential inventory is in `docs/deployment-guide.md` ("Where each credential lives").
 - **Still to do:**
   - Remaining owner item: the calendar reminder to rotate the Access service token two weeks before 2027-09-26.

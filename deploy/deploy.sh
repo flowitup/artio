@@ -30,8 +30,11 @@ prune() {        # best-effort cleanup: keep current, previous and the newest ot
     | awk -v c="$1" -v p="$2" -v k="$KEEP" '$0 != c && $0 != p { if (++n > k - 2) print }' \
     | while read -r old; do
         refs=$(docker image inspect -f '{{range .RepoDigests}}{{println .}}{{end}}' "$IMAGE:$old" | grep "^$IMAGE@" || true)
-        # shellcheck disable=SC2086 # $refs is a deliberately unquoted list of zero or more digest refs
-        docker image rm "$IMAGE:$old" $refs >/dev/null && log "pruned $old"
+        docker image rm "$IMAGE:$old" >/dev/null 2>&1 || true
+        for ref in $refs; do   # the containerd store drops these along with the last tag; the classic store keeps them
+          if docker image inspect "$ref" >/dev/null 2>&1; then docker image rm "$ref" >/dev/null 2>&1 || true; fi
+        done
+        if docker image inspect "$IMAGE:$old" >/dev/null 2>&1; then log "could not prune $old"; else log "pruned $old"; fi
       done
   docker image ls "$IMAGE" --filter dangling=true --format '{{.ID}}' \
     | while read -r id; do docker image rm "$id" >/dev/null && log "pruned dangling $id"; done
