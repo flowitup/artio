@@ -1,0 +1,38 @@
+[project]
+name = "atelier"
+version = "0.1.0"
+description = "Private multi-model image studio that drives Modal GPU backends."
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "jinja2>=3.1",
+    "python-multipart>=0.0.9",
+    "modal>=1.5.5,<1.6",
+    "pyjwt[crypto]>=2.9",
+    "pillow>=10.4",
+    "tzdata>=2024.1",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.6", "httpx>=0.27"]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 110
+
+[tool.ruff.lint]
+extend-select = ["I"]
+
+[tool.ruff.lint.per-file-ignores]
+# The deployed Modal backend is kept byte-identical apart from its validated changes, so lint never edits it.
+"modal/qwen21_uc_app.py" = ["I001", "S110", "BLE001"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-m 'not live'"
+markers = ["live: calls the real Modal backend and spends GPU money; run only with the owner's go-ahead"]

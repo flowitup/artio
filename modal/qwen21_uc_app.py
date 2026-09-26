@@ -50,7 +50,7 @@ image = (
         f"git clone --depth 1 --branch {COMFY_VERSION} https://github.com/comfyanonymous/ComfyUI /root/ComfyUI",
         "pip install -r /root/ComfyUI/requirements.txt",
     )
-    .pip_install("requests", "fastapi[standard]")
+    .pip_install("requests")
 )
 
 dl_image = modal.Image.debian_slim(python_version="3.12").pip_install("huggingface_hub")
@@ -149,12 +149,14 @@ class Qwen21UC:
         """Run any API-format ComfyUI workflow (e.g. exported from Comfy Desktop)."""
         return self._run(workflow)
 
-    @modal.fastapi_endpoint(method="POST", requires_proxy_auth=True)
-    def api(self, body: dict):
-        """POST {prompt, width, height, steps, seed} with Modal-Key/Modal-Secret headers -> image/png."""
-        from fastapi import Response
-        png = self.generate.local(**{k: v for k, v in body.items() if k in ("prompt", "width", "height", "steps", "seed", "cfg", "negative")})
-        return Response(content=png, media_type="image/png")
+    @modal.method()
+    def ping(self) -> str:
+        """Warm-up probe: succeeds only while ComfyUI answers, so "warm" means ComfyUI is ready."""
+        import requests
+        response = requests.get(f"{self.base}/system_stats", timeout=5)
+        if response.status_code != 200:
+            raise RuntimeError(f"ComfyUI is not answering: /system_stats returned HTTP {response.status_code}")
+        return "ok"
 
 
 @app.local_entrypoint()
