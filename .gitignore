@@ -1,0 +1,29 @@
+# Generated images and private run logs (logs/ may contain token output)
+out/
+logs/
+data/
+
+# Secrets
+.env
+.env.*
+
+# Python tooling
+__pycache__/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Built plugin bundles
+*.plugin
+
+# macOS
+.DS_Store
+
+# Agent-local memory
+.claude/agent-memory/
+
+# Never commit images inside planning records
+plans/**/*.png
+plans/**/*.jpg
+plans/**/*.jpeg
+plans/**/*.webp
