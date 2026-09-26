@@ -612,8 +612,8 @@ Delete: none.
 - [ ] [OWNER-GATED] Access app, service token (1 year, expiry recorded, rotation reminder set), AUD, SameSite=Lax
 - [x] [OWNER-GATED] Modal runtime and CI tokens, spend limit (plus alerts if offered), now-unused proxy-auth tokens revoked
 - [x] [OWNER-GATED] Hetzner Volume created, attached, mounted by UUID with `nofail`, sentinel present
-- [ ] [OWNER-GATED] `/opt/atelier` files, `.env`, subnet check, egress unit, restricted key, host key pinned
-- [ ] [OWNER-GATED] GitHub repo, `production` environment and its secrets; first deploy green
+- [x] [OWNER-GATED] `/opt/atelier` files, `.env`, subnet check, egress unit, restricted key, host key pinned
+- [x] [OWNER-GATED] GitHub repo, `production` environment and its secrets; first deploy green
 - [ ] [OWNER-GATED] Tunnel cutover sub-steps (a)–(g), each passed; DNS route
 - [ ] [OWNER-GATED] Cold-start job, restart-mid-job check, `deploy-modal` dispatch
 
@@ -743,9 +743,26 @@ All secrets were copied by the owner straight into their password manager. None 
   - The old `JZx+` line was then removed (backup `authorized_keys.bak-20260926T221116Z`). A login with it is refused, and the `folio-prod` alias still works.
   - The LearnFlow private-key file was deleted from the laptop.
   - Editing `.env` over SSH failed: the server has no terminfo for Ghostty (`xterm-ghostty`). The fix is `TERM=xterm-256color ssh -t folio-prod nano /opt/atelier/.env`.
+- **`.env` completed (2026-09-27, about 00:30 Paris time):**
+  - The owner couldn't find the plugin Client ID or the `atelier-runtime` secret. The Client ID isn't secret: Claude read it from the Cloudflare dashboard and wrote it into `.env`.
+  - In the owner's Chrome, at their request, Claude deleted the unused `atelier-runtime` Modal token and created `atelier-runtime-2`. Claude stopped looking at the tab before the secret appeared.
+  - The owner saved the new token through a helper script that reads it at hidden prompts and rewrites only its two `.env` lines over SSH.
+  - Check: all three lines have the right shape, `.env` is still 0600 root, and `docker compose config` resolves.
+  - The service token's exact expiry, read from the dashboard, is 2027-09-26 17:47 Paris time.
+- **Step 18, first deploy (2026-09-27 00:30 Paris time):**
+  - Run 36276417182 was green: test, secret scan, build, then deploy. The server logged `deployed 458f387…` about 17 s after the job started.
+  - The pull with the job's own `GITHUB_TOKEN` needed no package setting, and the size check before the pull ran through `docker manifest inspect`.
+  - `deploy.sh status`: the container was healthy, and `/healthz` reported version `458f387…` with loops `ok`.
+  - Posture: uid 10001, read-only, `CapDrop=[ALL]`, `no-new-privileges`, `127.0.0.1:8090` only, `/mnt/atelier-data`→`/data`, 768 MiB.
+  - Without a valid JWT the origin returned 403, both with no header and with a forged one.
+  - From the container:
+    - metadata and the host's tailnet address were blocked (control checks from the host reach both);
+    - the Modal API worked with `atelier-runtime-2`;
+    - the Access JWKS returned 200.
+  - The Folio containers were untouched, and folio returned 200, learn 302 and cdn 403 as its baseline.
+  - The laptop's copies of the deploy key and the pinned host key were deleted.
 - **Still to do:**
-  - The owner fills in the three `.env` credentials.
-  - Then steps 18–21.
+  - Then steps 19–21.
   - The owner's calendar reminder to rotate the service token two weeks before 2027-09-26.
   - Follow-ups outside this plan: rotate `hetzner-deploy` on `dev-deploy`, and harden Folio's CI key.
 

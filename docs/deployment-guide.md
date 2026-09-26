@@ -110,21 +110,29 @@ The application cookie's `SameSite` attribute is set to **Lax** (Cloudflare's de
 `None`); the session lasts 24 hours; all identity providers on the account are available to
 the owner's policy.
 
-The service token was issued with a **1-year** lifetime and expires **around
-2027-09-26**. Put a calendar reminder two weeks before that date to rotate it. If the token is
+The service token was issued with a **1-year** lifetime and expires on **2027-09-26 at 17:47
+Paris time**, as the dashboard shows. Put a calendar reminder two weeks before that date to rotate
+it. If the token is
 ever suspected of leaking, revoke it immediately in Access → Service credentials — there is no
 grace period for a suspected leak.
 
-The Application Audience (AUD) tag and the service token's Client ID were copied into the
-`.env` file described below. Neither value, nor the token's Client Secret, is recorded in this
-guide or anywhere else in the repository; they live only in `.env` (0600, root-only) and the
-owner's password manager.
+The Application Audience (AUD) tag and the service token's Client ID are in the `.env` file
+described below. The Client ID isn't secret, and the dashboard keeps showing it on the token's
+page (Access controls → Service credentials → Service Tokens → `atelier-plugin`); only the Client
+Secret is shown just once. Neither value, nor the Client Secret, is recorded in this guide or
+anywhere else in the repository. They live only in `.env` (0600, root-only) and the owner's
+password manager.
 
 ### Modal tokens and spend limit — done
 
-Two dedicated Modal tokens exist: one for the running container's `.env` (runtime access
-only) and one for the CI deploy pipeline's environment secrets. Both are workspace-wide,
-because the Modal workspace has no Service Users to scope a token more tightly.
+Two dedicated Modal tokens exist, both workspace-wide because the Modal workspace has no
+Service Users to scope a token more tightly:
+- `atelier-runtime-2` is used by the running container, through `.env`.
+- `atelier-ci` is used by the CI pipeline, through the `production` environment's secrets.
+
+Modal shows a token's secret only once, when it is created; its token list keeps showing only the
+token IDs. The first runtime token, `atelier-runtime`, was deleted unused on 2026-09-27, because
+its secret hadn't been saved, and replaced by `atelier-runtime-2`.
 
 A workspace spend limit is set on Modal's Usage & Billing page at **$20**, the maximum the
 account's plan allows; Modal stops billable workloads once the workspace reaches it. The
@@ -149,7 +157,7 @@ Ubuntu 26.04 ships uutils coreutils, whose `install` rejects a numeric owner suc
 has no account on the host. Create Atelier's directories with `mkdir` and then
 `chown 10001:10001`.
 
-### GitHub repository — environment ready, three secrets pending
+### GitHub repository — environment and secrets set
 
 The private repository exists, and its history up to the web UI is pushed. On 2026-09-26 the
 owner's login email was purged from that history with a rewrite and a force-push. GitHub may
@@ -160,21 +168,33 @@ repository-level secrets. Its secrets:
 
 - `HETZNER_HOST` and `HETZNER_KNOWN_HOSTS`: set. The host key was checked against the fingerprint
   read on the server itself.
-- `ATELIER_DEPLOY_SSH_KEY`: pending (the owner sets it).
-- `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`: pending (the owner sets them). They hold the
+- `ATELIER_DEPLOY_SSH_KEY`: set by the owner on 2026-09-26.
+- `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`: set by the owner on 2026-09-26. They hold the
   CI-scoped `atelier-ci` Modal token, not the runtime one.
 
 Set each with `gh secret set <NAME> --env production`, typed interactively or piped from a
 file — never as a command-line argument, which would land in shell history.
 
+### First deploy — done (2026-09-27)
+
+Run 36276417182 deployed commit `458f387` in about 17 seconds on the server, as digest
+`sha256:ad872f9c…`. The test, secret-scan and build jobs passed first, and the server pulled the
+private package with the job's own token, without any extra package setting. The size check
+before the pull ran on the host through `docker manifest inspect`. Checks afterwards:
+
+- `deploy.sh status`: the container is healthy, and `/healthz` reports the deployed version with
+  both worker loops `ok`. The image is 346 MB on the host.
+- The container runs as uid 10001, with a read-only root filesystem, every capability dropped,
+  `no-new-privileges`, only `127.0.0.1:8090`, the data volume at `/data` and a 768 MiB memory limit.
+- Without a valid Access JWT the origin answers 403, both with no header and with a forged one.
+- From inside the container, the cloud metadata service and the host's own tailnet address are
+  blocked, while the Modal API (with the runtime token) and the Access JWKS are reachable.
+  Control checks from the host reach both blocked targets, so the blocks come from the egress
+  rules.
+- Folio's six containers kept their uptimes, and Folio, cdn and LearnFlow answered as before.
+
 ### Remaining pending steps
 
-- Fill in `.env`'s three credential values (below), and set the three pending environment
-  secrets (above).
-- Push to `main` and watch the first deploy. The package is created by this repository's own
-  workflow, so it should already be linked to the repository. If the server's first image pull
-  is still denied, give `flowitup/atelier` read access in the package's settings (Manage Actions
-  access), then re-run the failed job.
 - Apply the tunnel ingress rule and DNS route (below).
 - Run the live acceptance checks: a cold-start generation with no timeout, and two jobs that
   survive a `deploy.sh stop` / `deploy.sh start` cycle mid-render.
@@ -199,11 +219,16 @@ here — never values:
 | `MODAL_ENVIRONMENT` | The Modal environment the app talks to (`main`) |
 
 The file was created on 2026-09-26 (root, 0600) with every value that isn't a credential filled
-in. The owner fills in the three credentials with an editor (`ssh -t folio-prod nano
-/opt/atelier/.env`): `ATELIER_PLUGIN_CLIENT_ID`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`. Never
-use `echo`, which would put values in shell history. Until they are filled in, the compose check
-below fails on the first empty one, so no deploy can start with a missing credential. After
-editing, check
+in. The rest was filled in on 2026-09-27:
+- `ATELIER_PLUGIN_CLIENT_ID` was read from the Cloudflare dashboard.
+- The owner saved the `atelier-runtime-2` token themselves, through a helper script that reads it
+  at hidden prompts and rewrites only its two lines over SSH.
+
+To edit the file by hand, use an editor, never `echo`, which would put values in shell history.
+The server has no terminal definition for Ghostty, so run
+`TERM=xterm-256color ssh -t folio-prod nano /opt/atelier/.env`. While any required value is
+empty, the compose check below fails on it, so no deploy can start with a missing credential.
+After editing, check
 that every `${VAR:?required}` interpolation resolves with `cd /opt/atelier && ATELIER_TAG=check
 docker compose config --quiet`.
 
@@ -449,7 +474,7 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
 - **Disk usage:** the app's own header shows usage against the volume's cap, and refuses new
   generation jobs at or over the cap, or when free space drops under the floor; `df -h
   /mnt/atelier-data` gives the underlying number directly.
-- **Token rotation reminders:** the Cloudflare Access service token, due around 2027-09-26 (see
+- **Token rotation reminders:** the Cloudflare Access service token, due 2027-09-26 at 17:47 Paris time (see
   above). Rotating it means, in order: creating the new token in Access; adding it to the
   application's Service Auth policy (a new token is not automatically attached to any policy);
   updating `ATELIER_PLUGIN_CLIENT_ID` in `.env` with the new token's Client ID (the Client
