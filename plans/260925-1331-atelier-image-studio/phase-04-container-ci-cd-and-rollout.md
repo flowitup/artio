@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Container, CI/CD & first production rollout"
-status: pending
+status: completed
 priority: P1
 effort: "12h"
 dependencies: [3]
@@ -609,7 +609,7 @@ Delete: none.
 - [x] `docs/deployment-guide.md`: setup, key audit, `.env` table, the `deploy.sh` subcommands, egress, tunnel runbook
 - [x] [OWNER-GATED] Root-key and Tailscale audit recorded; any other unrestricted CI key surfaced to the owner
 - [x] [OWNER-GATED] LearnFlow key restricted to rrsync; LearnFlow deploy green; shell refused
-- [ ] [OWNER-GATED] Access app, service token (1 year, expiry recorded, rotation reminder set), AUD, SameSite=Lax
+- [ ] [OWNER-GATED] Access app, service token (1 year, expiry recorded, rotation reminder set), AUD, SameSite=Lax (all done except the owner's calendar reminder to rotate the token by about 2027-09-12)
 - [x] [OWNER-GATED] Modal runtime and CI tokens, spend limit (plus alerts if offered), now-unused proxy-auth tokens revoked
 - [x] [OWNER-GATED] Hetzner Volume created, attached, mounted by UUID with `nofail`, sentinel present
 - [x] [OWNER-GATED] `/opt/atelier` files, `.env`, subnet check, egress unit, restricted key, host key pinned

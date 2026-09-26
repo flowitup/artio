@@ -4,7 +4,7 @@ title: "GPU status, warm-up & stop"
 status: pending
 priority: P2
 effort: "8h"
-dependencies: [5]
+dependencies: [4]
 ---
 
 # Phase 6: GPU status, warm-up & stop

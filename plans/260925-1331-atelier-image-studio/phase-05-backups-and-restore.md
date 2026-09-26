@@ -1,11 +1,13 @@
 ---
 phase: 5
 title: "Backups & restore"
-status: pending
+status: cancelled
 priority: P1
 effort: "7h"
 dependencies: [4]
 ---
+
+> **Dropped by the owner on 2026-09-27:** "don't need to make a backup for Atelier". Nothing in this phase was implemented, and no R2 bucket, token or restic password was created. The data volume holds the only copy of Atelier's images and database. The empty `/mnt/atelier-data/backup` directory made during the volume setup is unused.
 
 # Phase 5: Backups & restore
 

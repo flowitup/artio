@@ -174,6 +174,10 @@ was formatted as ext4 (label `atelier-data`) on 2026-09-26 and is mounted at
   file `.atelier-volume` is present.
 - The app refuses to start without the sentinel, so an accidentally empty mount point can
   never be mistaken for real data.
+- **No backups.** The owner decided on 2026-09-27 that Atelier has no backups. This volume holds
+  the only copy of the images and the database, and Hetzner's server backups and snapshots don't
+  include volumes. If the volume is lost or deleted, the images are gone, so download anything
+  worth keeping from the gallery. The empty `backup/` directory is unused.
 
 Ubuntu 26.04 ships uutils coreutils, whose `install` rejects a numeric owner such as 10001 that
 has no account on the host. Create Atelier's directories with `mkdir` and then
@@ -381,8 +385,8 @@ is present refuses immediately (exit code 75, logged) rather than starting the c
 underneath whatever manual work is in progress. `start` is what clears the marker, and only does
 so once the container has come back up healthy.
 
-Before any procedure that needs Atelier to stay down for a while (for example, a data restore
-from backup once that is running), also disable the deploy workflow itself, so a push to `main`
+Before any procedure that needs Atelier to stay down for a while (for example, manual work on
+the data volume), also disable the deploy workflow itself, so a push to `main`
 during the window can't even queue a deploy attempt:
 
 ```bash

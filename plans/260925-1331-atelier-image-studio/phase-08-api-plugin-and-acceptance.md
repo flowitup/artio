@@ -372,7 +372,7 @@ The executor fills this in during step 10. Every live step is **[OWNER-GATED]**.
 | 8 | Save, load and delete a preset; star and tag an image; find it by prompt text and by tag. | | |
 | 9 | Upload an API-format JSON for `qwen21-uc`, run it, see the result with its workflow attached; an invalid graph shows ComfyUI's error. | | |
 | 10 | Every plugin tool from Claude; a call without the service token is rejected; the service token gets 403 on an HTML route. | | |
-| 11 | `restic snapshots` shows last night's snapshot; the last weekly verify is ok; the restore rehearsal date is in the guide; a failure shows in the UI (phase 5's failure-display step). | | |
+| 11 | Dropped: the owner decided on 2026-09-27 that Atelier has no backups (phase 5 cancelled). | | |
 | 12 | Temporarily set `ATELIER_DATA_CAP_GB` below usage **[OWNER-GATED]**: a new job is refused with a clear message; usage is visible; restore the value. | | |
 | 13 | The last push deployed its digest through the SSH health check (`gh run list`); folio, cdn and learn match their baselines; a `deploy-modal` run succeeds; the hermetic deploy-script tests are green. | | |
 | 14 | gitleaks clean in CI; `docker image inspect` env and labels show no credential; the route-enumerating crawl test is green; the plugin zip holds no secret; `git ls-files` has nothing under `logs/` or `out/` and no image under `plans/`. | | |
