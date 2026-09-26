@@ -1,7 +1,7 @@
 ---
 phase: 1
 title: "Repo bootstrap & Modal backend"
-status: pending
+status: completed
 priority: P1
 effort: "3h"
 dependencies: []
@@ -224,17 +224,17 @@ Delete (moved with `git mv`):
 
 ## Todo List
 
-- [ ] Initialize the git repo on `main`, write `.gitignore` (including image files under `plans/`), and confirm `logs/` and `out/` are ignored with two separate checks
-- [ ] Commit the original files after a clean tracked-content secret check
-- [ ] Create `pyproject.toml`, `.python-version` and `uv.lock`, and run `uv sync`
-- [ ] Move the Modal script and smoke test under `modal/` with `git mv`
-- [ ] Apply the three script changes: ComfyUI-probing `ping()`, `api` endpoint deleted, `fastapi[standard]` dropped from the image
-- [ ] Fix the smoke test's output path and imports
-- [ ] Add `atelier/__init__.py`, `tests/conftest.py` and `tests/test_modal_backend_script.py`
-- [ ] Update the README: three moved commands (lines 8–10), HTTP section deleted
-- [ ] Get `uv run ruff check` and `uv run pytest` green, then commit
-- [ ] [OWNER-GATED] `modal deploy` from `modal/`; no web endpoint listed
-- [ ] [OWNER-GATED] Ping smoke call returns `ok`, and containers return to 0
+- [x] Initialize the git repo on `main`, write `.gitignore` (including image files under `plans/`), and confirm `logs/` and `out/` are ignored with two separate checks
+- [x] Commit the original files after a clean tracked-content secret check
+- [x] Create `pyproject.toml`, `.python-version` and `uv.lock`, and run `uv sync`
+- [x] Move the Modal script and smoke test under `modal/` with `git mv`
+- [x] Apply the three script changes: ComfyUI-probing `ping()`, `api` endpoint deleted, `fastapi[standard]` dropped from the image
+- [x] Fix the smoke test's output path and imports
+- [x] Add `atelier/__init__.py`, `tests/conftest.py` and `tests/test_modal_backend_script.py`
+- [x] Update the README: three moved commands (lines 8–10), HTTP section deleted
+- [x] Get `uv run ruff check` and `uv run pytest` green, then commit
+- [x] [OWNER-GATED] `modal deploy` from `modal/`; no web endpoint listed
+- [x] [OWNER-GATED] Ping smoke call returns `ok`, and containers return to 0
 
 ## Success Criteria
 
@@ -267,6 +267,14 @@ uv run modal app list --json && sleep 90 && uv run modal container list --json  
 ```
 
 The red team verified the `ak-`/`as-` token prefixes (`modal/config.py:25-26`). The grep is still a guard, not proof; CI adds a full scanner in phase 4.
+
+### Verification notes (2026-09-26, owner-approved live steps)
+- `git grep` across every commit found no token patterns, and nothing under `logs/` or `out/` was ever tracked. The repo was pushed as the private `flowitup/atelier` at the owner's request.
+- `uv run ruff check` passed (per-file ignores `I001`, `S110`, `BLE001` for the untouched backend script), and `uv run pytest -q` passed 6 tests.
+- The rename diff shows exactly the three validated changes: 9 lines added, 7 removed.
+- `modal deploy` finished in 4.7 s. Only the final `pip_install` layer rebuilt, and the output lists no web endpoint URL.
+- The cold `ping.remote()` returned `'ok'` in 27.8 s, a ComfyUI boot without model load. Stats right after showed 1 runner.
+- **The container scaled to zero about 118 s after the ping,** measured by polling `modal container list --json` every 10 s. That is the 60 s `scaledown_window` plus Modal's shutdown latency. Phase 6 should expect "about 2 minutes", not "about 60 s", for the fail-safe.
 
 ## Risk Assessment
 
