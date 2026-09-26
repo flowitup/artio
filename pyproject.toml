@@ -27,6 +27,10 @@ line-length = 110
 [tool.ruff.lint]
 extend-select = ["I"]
 
+[tool.ruff.lint.isort]
+# The repo's modal/ folder holds the backend script; the importable `modal` is the installed SDK.
+known-third-party = ["modal"]
+
 [tool.ruff.lint.per-file-ignores]
 # The deployed Modal backend is kept byte-identical apart from its validated changes, so lint never edits it.
 "modal/qwen21_uc_app.py" = ["I001", "S110", "BLE001"]
