@@ -1,7 +1,7 @@
 ---
 phase: 3
 title: "Web UI & Access auth"
-status: pending
+status: completed
 priority: P1
 effort: "11h"
 dependencies: [2]
@@ -300,16 +300,16 @@ Delete: none.
 
 ## Todo List
 
-- [ ] `auth.py` and the middleware; auth tests pass with real RS256 JWTs; the service identity is refused outside `SERVICE_ROUTES`
-- [ ] Body-size middleware with Content-Length and streamed-count checks
-- [ ] `create_app` factory and lifespan (migrate, start and stop the worker; `app.state.worker` always present)
-- [ ] Vendored htmx and Pico with recorded checksums, plus `app.css`
-- [ ] Generate form (plain form, 200 re-render on errors): model picker, presets, custom size, seed modes, count 1–8, remix
-- [ ] Queue with 2 s polling and a 286 stop; DB-only cancel with the "GPU may still finish" note; retry restarts polling; waiting reasons on queued rows
-- [ ] Gallery grouped by batch with a model filter; batch page
-- [ ] Image page with full settings; download and remix; delete removes image, job and empty batch, with the backup-retention confirmation text
-- [ ] Header disk badge, paused reasons and backend alerts; `/healthz` with loop liveness
-- [ ] Route-enumerating crawl proves no secret sentinel is ever rendered
+- [x] `auth.py` and the middleware; auth tests pass with real RS256 JWTs; the service identity is refused outside `SERVICE_ROUTES`
+- [x] Body-size middleware with Content-Length and streamed-count checks
+- [x] `create_app` factory and lifespan (migrate, start and stop the worker; `app.state.worker` always present)
+- [x] Vendored htmx and Pico with recorded checksums, plus `app.css`
+- [x] Generate form (plain form, 200 re-render on errors): model picker, presets, custom size, seed modes, count 1–8, remix
+- [x] Queue with 2 s polling and a 286 stop; DB-only cancel with the "GPU may still finish" note; retry restarts polling; waiting reasons on queued rows
+- [x] Gallery grouped by batch with a model filter; batch page
+- [x] Image page with full settings; download and remix; delete removes image, job and empty batch, with the backup-retention confirmation text
+- [x] Header disk badge, paused reasons and backend alerts; `/healthz` with loop liveness
+- [x] Route-enumerating crawl proves no secret sentinel is ever rendered
 
 ## Success Criteria
 
@@ -385,3 +385,16 @@ curl -s http://127.0.0.1:8090/healthz        # {"status":"ok","version":"dev","l
 ## Next Steps
 
 Phase 4 containerizes this app, deploys it to `folio-prod-1` behind the tunnel and Access, and proves criterion 1 end to end. Its deploy health check requires the `"loops":"ok"` field defined here.
+
+## Verification notes (2026-09-26)
+- **Gates:** `uv run ruff check` is clean, and `uv run pytest -q` passes 285 tests (1 live test deselected). Every success-criteria test exists and passes. They were mutation-proven: the service allowlist, email match, CSRF check, body limit, `/healthz` staleness, delete cascade and the secret crawl.
+- **Independent security review:** 6 Medium and 11 Low findings, no Critical or High. All were accepted and fixed before the commit. The main fixes:
+  - queue polling now stops (the timer is only emitted while jobs are active);
+  - `/healthz` reports a started-but-silent worker as stale (503);
+  - anti-framing and nosniff headers are sent on every response;
+  - a dedicated JWKS thread pool with a 5 s timeout;
+  - path containment is enforced before every file serve and unlink;
+  - the tests that couldn't fail were rewritten.
+  See [code-review-web-ui-auth.md](./reports/code-review-web-ui-auth.md).
+- **FastAPI 0.141 behavior:** included routers are wrapped as `_IncludedRouter`, so route crawls use `fastapi.routing.iter_route_contexts()` with a minimum-visited floor.
+- **Local generation:** the optional owner-approved local run (step 13) was skipped. Generation is proven end to end in the phase 4 live acceptance on production.
