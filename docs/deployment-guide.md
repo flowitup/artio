@@ -70,8 +70,7 @@ LearnFlow's CI secret since July. Root's keys now are:
 | `SHA256:Qik/LV97…` | Folio's CI (`folio-ci-deploy`) | none | accepted residual risk, tracked for a separate Folio hardening task |
 | `SHA256:sRwFrc79…` | LearnFlow's CI (`learnflow-ci`) | `restrict,command="/usr/bin/rrsync -wo /var/www/learnflow"` | added 2026-09-26 |
 | `SHA256:DJ+/jxTo…` | the owner's Mac (`mac-admin-folio-prod-2026-09`, `~/.ssh/folio-prod-admin`) | none | added 2026-09-26; the laptop's `folio-prod` SSH alias uses it |
-
-The Atelier deploy key joins this table when it is created (see "Deploy key" below).
+| `SHA256:7+LZJSAo…` | Atelier's CI (`atelier-deploy`, the `ATELIER_DEPLOY_SSH_KEY` secret) | `restrict,command="/opt/atelier/deploy.sh"` | added 2026-09-26 (see "Deploy key" below) |
 
 If a later audit turns up any other unrestricted CI-held key, stop and decide with the owner
 how to handle it before continuing. Don't fold it into a rollout silently.
@@ -122,38 +121,46 @@ account's plan allows; Modal stops billable workloads once the workspace reaches
 workspace held no proxy-auth tokens from the legacy endpoint, so there was nothing to revoke
 there.
 
-### Hetzner data volume — created, not yet mounted
+### Hetzner data volume — mounted
 
-A 50 GB volume (Hetzner volume ID **106963035**) has been created in the same location as
-`folio-prod-1` and attached to it, without automount. It is not yet formatted or mounted.
+A 50 GB volume (Hetzner volume ID **106963035**, `/dev/sdb`) is attached to `folio-prod-1`. It
+was formatted as ext4 (label `atelier-data`) on 2026-09-26 and is mounted at
+`/mnt/atelier-data`.
 
-Mounting it (pending) means: confirming the block device with `lsblk`/`ls -l
-/dev/disk/by-id`, formatting it as ext4 only if it has no filesystem yet, adding a `nofail`
-line to `/etc/fstab` keyed by UUID (so a detached volume can never block the host's boot),
-mounting it at `/mnt/atelier-data`, creating the sentinel file, and setting ownership to uid
-10001. `nofail` means the volume can be reattached and mounted later without a reboot; because
-the app refuses to start without the sentinel, an accidentally-empty mount point can never be
-mistaken for real data.
+- `/etc/fstab` has one added line, keyed by UUID, with `defaults,nofail,noatime 0 2`. A
+  detached volume therefore never blocks the host's boot, and it can be reattached and mounted
+  later without a reboot. The file was backed up first as `/etc/fstab.bak-20260926T215130Z`.
+- The mount root, `images/` and `backup/` belong to uid 10001 with mode 0750, and the sentinel
+  file `.atelier-volume` is present.
+- The app refuses to start without the sentinel, so an accidentally empty mount point can
+  never be mistaken for real data.
 
-### GitHub repository — partially done
+Ubuntu 26.04 ships uutils coreutils, whose `install` rejects a numeric owner such as 10001 that
+has no account on the host. Create Atelier's directories with `mkdir` and then
+`chown 10001:10001`.
 
-The private repository has been created and this codebase pushed to it. Still pending: a
-`production` environment, limited to the `main` branch, holding these secrets (and no
-repository-level secrets):
+### GitHub repository — environment ready, three secrets pending
 
-- `HETZNER_HOST`, `HETZNER_KNOWN_HOSTS`
-- `ATELIER_DEPLOY_SSH_KEY`
-- `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` (the CI-scoped Modal token, not the runtime one)
+The private repository exists, and its history up to the web UI is pushed. On 2026-09-26 the
+owner's login email was purged from that history with a rewrite and a force-push. GitHub may
+still serve the old, now unreferenced commits by ID until it garbage-collects them.
+
+The `production` environment exists, and only the `main` branch may deploy to it. There are no
+repository-level secrets. Its secrets:
+
+- `HETZNER_HOST` and `HETZNER_KNOWN_HOSTS`: set. The host key was checked against the fingerprint
+  read on the server itself.
+- `ATELIER_DEPLOY_SSH_KEY`: pending (the owner sets it).
+- `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`: pending (the owner sets them). They hold the
+  CI-scoped `atelier-ci` Modal token, not the runtime one.
 
 Set each with `gh secret set <NAME> --env production`, typed interactively or piped from a
 file — never as a command-line argument, which would land in shell history.
 
 ### Remaining pending steps
 
-- Mount the data volume (above) and install the egress unit (below).
-- Copy `compose.yaml` and `deploy.sh` to `/opt/atelier`, create `.env` (below).
-- Generate and install the deploy key (below), and create the GitHub environment secrets
-  (above).
+- Fill in `.env`'s three credential values (below), and set the three pending environment
+  secrets (above).
 - Push to `main` and watch the first deploy. The package is created by this repository's own
   workflow, so it should already be linked to the repository. If the server's first image pull
   is still denied, give `flowitup/atelier` read access in the package's settings (Manage Actions
@@ -181,8 +188,12 @@ here — never values:
 | `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` | The runtime Modal token (the dedicated one, not the CI one) |
 | `MODAL_ENVIRONMENT` | The Modal environment the app talks to (`main`) |
 
-Create the file with `install -m 0600 /dev/null /opt/atelier/.env` and fill it in with an
-editor, never with `echo` (which would put values in shell history). After editing, check
+The file was created on 2026-09-26 (root, 0600) with every value that isn't a credential filled
+in. The owner fills in the three credentials with an editor (`ssh -t folio-prod nano
+/opt/atelier/.env`): `ATELIER_PLUGIN_CLIENT_ID`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`. Never
+use `echo`, which would put values in shell history. Until they are filled in, the compose check
+below fails on the first empty one, so no deploy can start with a missing credential. After
+editing, check
 that every `${VAR:?required}` interpolation resolves with `cd /opt/atelier && ATELIER_TAG=check
 docker compose config --quiet`.
 
@@ -205,6 +216,18 @@ The CI pipeline reaches the server through a single, purpose-restricted SSH key:
    connects with host-key checking disabled.
 5. Prove the boundary before relying on it: connecting with this key and asking for `id` must
    print a rejection and exit with a non-zero status, never run the command.
+
+**State on 2026-09-26.** The key `atelier-deploy` (`SHA256:7+LZJSAo…`) was installed with its
+forced command. `authorized_keys` was backed up first as `authorized_keys.bak-20260926T215349Z`.
+The server's ed25519 host key is `SHA256:6dN+8Mw+…`; the `ssh-keyscan` result matched the
+fingerprint read on the server before it went into `HETZNER_KNOWN_HOSTS`.
+
+The boundary was proven with the key itself. Each refusal below exited with status 2 and
+appeared in `journalctl -t atelier-deploy`:
+- `id` is refused with `rejected: unexpected command`;
+- a plain shell request is refused the same way;
+- a well-formed `deploy` with no registry token stops at `rejected: no registry token on
+  stdin`, before any Docker call.
 
 ## Egress unit
 
@@ -232,6 +255,18 @@ ssh folio-prod 'install -m 0644 /tmp/atelier-egress.service /etc/systemd/system/
 
 Disabling it (`systemctl disable --now atelier-egress.service`) removes all four rules; it never
 touches Folio's or LearnFlow's networking.
+
+**State on 2026-09-26.** The unit is installed, enabled and active.
+- The host uses `iptables` 1.8.11 (nf_tables), and Docker's firewall backend is iptables.
+- The full rule set from before the install was saved to
+  `/root/iptables-before-atelier-egress-20260926T215239Z.rules`.
+- `iptables -S DOCKER-USER` shows the three rules with their matches (`-o tailscale0`,
+  `-d 100.64.0.0/10` and `-d 169.254.169.254/32`), all for source `172.30.90.0/24`.
+- The INPUT rule sits above Tailscale's `ts-input` jump.
+- Plain `iptables -L` hides interface matches, so the `tailscale0` rule looks like a blanket drop
+  there. Use `-S` to read it.
+- Folio `/health` (200), LearnFlow (302 to Access) and cdn (its storage backend's own
+  `AccessDenied` 403 at the root) answered normally afterwards.
 
 **Residual risk:** the unit only runs `After=docker.service`, and Docker's own startup ordering
 is intentionally left unchanged (reordering it to run before Docker risks delaying Folio's and

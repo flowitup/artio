@@ -519,8 +519,9 @@ Delete: none.
     echo "UUID=$UUID /mnt/atelier-data ext4 defaults,nofail,noatime 0 2" >> /etc/fstab
     findmnt --verify && mount /mnt/atelier-data && findmnt /mnt/atelier-data
     touch /mnt/atelier-data/.atelier-volume
-    install -d -o 10001 -g 10001 -m 0750 /mnt/atelier-data/images /mnt/atelier-data/backup
-    chown 10001:10001 /mnt/atelier-data /mnt/atelier-data/.atelier-volume
+    mkdir -p /mnt/atelier-data/images /mnt/atelier-data/backup   # uutils `install -o` rejects an unknown numeric owner
+    chown 10001:10001 /mnt/atelier-data /mnt/atelier-data/.atelier-volume /mnt/atelier-data/images /mnt/atelier-data/backup
+    chmod 0750 /mnt/atelier-data /mnt/atelier-data/images /mnt/atelier-data/backup
     ```
 
 14. **[OWNER-GATED] `/opt/atelier` and the files on the server.**
@@ -604,13 +605,13 @@ Delete: none.
 - [x] Dockerfile with digest-pinned bases, allowlist `.dockerignore`, and `compose.yaml` with the fixed subnet
 - [x] `deploy/deploy.sh` with the digest grammar, provenance checks, detached apply, and `rollback | stop | start | status`; hermetic tests; `shellcheck` clean
 - [x] `ci.yml`, `deploy.yml` and the split `deploy-modal.yml`: actions pinned by SHA, `permissions: {}`, `persist-credentials: false`, environment `production`, no build skip
-- [ ] Local confined container run passes (uid 10001, read-only, `/healthz` with live loops, `python -m modal` present, revision label)
+- [x] Local confined container run passes (uid 10001, read-only, `/healthz` with live loops, `python -m modal` present, revision label)
 - [x] `docs/deployment-guide.md`: setup, key audit, `.env` table, the `deploy.sh` subcommands, egress, tunnel runbook
 - [x] [OWNER-GATED] Root-key and Tailscale audit recorded; any other unrestricted CI key surfaced to the owner
 - [ ] [OWNER-GATED] LearnFlow key restricted to rrsync; LearnFlow deploy green; shell refused
 - [ ] [OWNER-GATED] Access app, service token (1 year, expiry recorded, rotation reminder set), AUD, SameSite=Lax
 - [x] [OWNER-GATED] Modal runtime and CI tokens, spend limit (plus alerts if offered), now-unused proxy-auth tokens revoked
-- [ ] [OWNER-GATED] Hetzner Volume created, attached, mounted by UUID with `nofail`, sentinel present
+- [x] [OWNER-GATED] Hetzner Volume created, attached, mounted by UUID with `nofail`, sentinel present
 - [ ] [OWNER-GATED] `/opt/atelier` files, `.env`, subnet check, egress unit, restricted key, host key pinned
 - [ ] [OWNER-GATED] GitHub repo, `production` environment and its secrets; first deploy green
 - [ ] [OWNER-GATED] Tunnel cutover sub-steps (a)–(g), each passed; DNS route
@@ -713,7 +714,33 @@ All secrets were copied by the owner straight into their password manager. None 
   - New admin key `mac-admin-folio-prod-2026-09` (`SHA256:DJ+/jxTo…`) was added and tested, and the `folio-prod` SSH alias now uses `~/.ssh/folio-prod-admin` (`~/.ssh/config` backed up).
   - The old `JZx+` line is removed only after LearnFlow deploys with its own key.
   - Suggested to the owner: add a passphrase with `ssh-keygen -p -f ~/.ssh/folio-prod-admin` and use the macOS Keychain.
-- **Still to do:** step 5 (the local container check, blocked while Docker Desktop's VM is down), the LearnFlow secret swap and old-key removal, steps 13–21, and the owner's calendar reminder to rotate the service token two weeks before 2027-09-26. The expiry date is recorded in `docs/deployment-guide.md`.
+- **Server preparation (2026-09-26, the owner said "do it for me"):**
+  - **Step 5:** Docker Desktop was restarted. The local confined run passed:
+    - `/healthz` reported `"loops":"ok"`, and the app ran as uid 10001;
+    - `python -m modal` worked;
+    - `Config.Volumes` was null, and the revision label was present;
+    - `/app` held only `.venv` and `atelier`, and the root filesystem was read-only;
+    - the image was 375 MB.
+  - **Git history:** the owner's login email was purged. Five commits were rewritten from a backup branch, with identical final files, and only the three already-published ones were force-pushed with a lease. The Part A commits stay local until the first deploy.
+  - **Step 13:**
+    - `/dev/sdb` (volume 106963035, 50G, no filesystem) was formatted ext4 and added to `fstab` by UUID with `nofail,noatime` (backup `/etc/fstab.bak-20260926T215130Z`), then mounted. It has 47 GB free.
+    - Ownership, the sentinel and the directories were set with `mkdir` and `chown`, because the host's uutils coreutils `install` rejects owner 10001.
+  - **Step 14:**
+    - Port 8090 was free, and there was no subnet or name collision (`folio` is the only compose project).
+    - `/opt/atelier` was created (0750), and `compose.yaml` and `deploy.sh` were copied (checksums match).
+    - `.env` was written (0600) with every value that isn't a credential. The owner still fills in `ATELIER_PLUGIN_CLIENT_ID`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`.
+    - Compose interpolation passes with stand-ins for those three.
+  - **Step 15:** the iptables state was saved first, then the unit was installed, enabled and made active. `iptables -S` shows the three DOCKER-USER rules and the INPUT rule. Folio, cdn and LearnFlow answered normally afterwards.
+  - **Step 16:**
+    - `atelier-deploy` (`SHA256:7+LZJSAo…`) was added with its forced command (backup `authorized_keys.bak-20260926T215349Z`).
+    - The host key `SHA256:6dN+8Mw+…` matched between `ssh-keyscan` and the server's own copy.
+    - `id` and a shell request were refused with exit 2. A well-formed deploy without a token stopped at "no registry token on stdin". All three refusals were logged in the journal.
+  - **Step 17 (in part):** the `production` environment was created with a custom branch policy (`main` only), and `HETZNER_HOST` and `HETZNER_KNOWN_HOSTS` were set. There are no repository-level secrets.
+- **Still to do:**
+  - The owner sets the credentials: LearnFlow's `SSH_PRIVATE_KEY`, Atelier's `ATELIER_DEPLOY_SSH_KEY`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` (the `atelier-ci` token), and the three `.env` values.
+  - Then the LearnFlow push and check, and the old-key removal.
+  - Steps 18–21.
+  - The owner's calendar reminder to rotate the service token two weeks before 2027-09-26.
 
 ## Risk Assessment
 
