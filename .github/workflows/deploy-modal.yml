@@ -1,0 +1,60 @@
+# Redeploys the Modal backend whenever modal/** changes on main, or on manual dispatch. The Modal
+# token is scoped to the single `modal deploy` step; the test job never sees it.
+name: Deploy Modal
+
+on:
+  push:
+    branches: [main]
+    paths: [modal/**]
+  workflow_dispatch:
+
+permissions: {}
+concurrency: {group: deploy-modal, cancel-in-progress: false}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.9.26"
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Test the Modal backend script
+        run: uv run pytest -q tests/test_modal_backend_script.py tests/test_graph_parity.py
+
+  deploy:
+    needs: test
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          version: "0.9.26"
+
+      - name: Install dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: modal deploy
+        env:
+          MODAL_TOKEN_ID: ${{ secrets.MODAL_TOKEN_ID }}
+          MODAL_TOKEN_SECRET: ${{ secrets.MODAL_TOKEN_SECRET }}
+          MODAL_ENVIRONMENT: main
+        run: uv run --no-sync modal deploy modal/qwen21_uc_app.py

@@ -1,0 +1,38 @@
+name: atelier
+services:
+  atelier:
+    image: ghcr.io/flowitup/atelier:${ATELIER_TAG:?required}   # a local tag that deploy.sh bound to a verified digest
+    container_name: atelier
+    pull_policy: never                      # images arrive only through deploy.sh
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    tmpfs: ["/tmp:size=256m"]
+    cap_drop: [ALL]
+    security_opt: ["no-new-privileges:true"]
+    ports: ["127.0.0.1:8090:8000"]
+    volumes: ["/mnt/atelier-data:/data"]
+    env_file: [/opt/atelier/.env]
+    environment:
+      ATELIER_ENV: production
+      ATELIER_DATA_DIR: /data
+      ATELIER_CF_AUD: ${ATELIER_CF_AUD:?required}
+      ATELIER_OWNER_EMAIL: ${ATELIER_OWNER_EMAIL:?required}
+      ATELIER_PLUGIN_CLIENT_ID: ${ATELIER_PLUGIN_CLIENT_ID:?required}
+      MODAL_TOKEN_ID: ${MODAL_TOKEN_ID:?required}
+      MODAL_TOKEN_SECRET: ${MODAL_TOKEN_SECRET:?required}
+    mem_limit: 768m
+    cpus: 1.0
+    healthcheck:
+      test: ["CMD", "python", "-c", "import sys,urllib.request as u; sys.exit(0 if u.urlopen('http://127.0.0.1:8000/healthz', timeout=3).status == 200 else 1)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
+    networks: [atelier]
+networks:
+  atelier:
+    ipam:
+      config:
+        - subnet: 172.30.90.0/24            # fixed, so the egress rules can name it; checked for collisions first

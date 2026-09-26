@@ -1,0 +1,6 @@
+# Allowlist: only these paths reach the build context. Everything else -- secrets, logs, plans,
+# the Modal backend, git history -- stays off the image.
+*
+!pyproject.toml
+!uv.lock
+!atelier/
