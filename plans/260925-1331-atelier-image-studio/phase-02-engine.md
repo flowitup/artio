@@ -1,7 +1,7 @@
 ---
 phase: 2
 title: "Engine"
-status: pending
+status: completed
 priority: P1
 effort: "12h"
 dependencies: [1]
@@ -425,23 +425,25 @@ Delete: none.
     - It holds no loop-bound asyncio primitives, and its state is guarded by a `threading.Lock`, so phase 8 can drive it from another thread.
 11. **Engine tests.** Add the engine tests listed in the Todo list. They drive `dispatch_once()` and `poll_once()` directly and never sleep.
 12. **Live test.** Add `tests/test_live_generation.py` with `pytestmark = pytest.mark.live`, skipped unless `ATELIER_LIVE_TESTS=1`. It uses `ModalSdkGateway` and a 1088×1920, 25-step graph from `build_graph`, the benchmarked settings, so a real render takes about 16 s.
-    - It renders **sequentially**, waiting for each result before spawning the next: A (seed 424242), then B (seed 424243), then A again. Sequential order keeps ComfyUI's output cache from serving the second A.
+    <!-- Updated: Implementation 2026-09-26 - fresh-container re-render -->
+    - It renders A (seed 424242), then B (seed 424243), waiting for each result, then **waits until the backend scales to zero**, then renders A again on a fresh container.
+    - **Sequential order alone is not enough.** A first owner-approved run rendered A → B → A on one warm container, and the second A came back in 2.3 s, served by ComfyUI's output cache even though B ran in between. Only a fresh container, whose ComfyUI has an empty cache, forces a real re-render.
     - It asserts that the two A renders are pixel-identical, that the second A took more than 5 s (it was really re-rendered), and that B differs from A (mean absolute pixel difference above 5.0).
 13. **Lint and test.** Run `uv run ruff check` and `uv run pytest -q`. Commit as `feat: job engine with registry, Modal gateway, worker loops and storage`.
-14. **[OWNER-GATED] Live test.** Ask the owner before running it; it spends about $0.10 (a cold start plus three renders of about 16 s each). Record the result in this phase's Verification notes.
+14. **[OWNER-GATED] Live test.** Ask the owner before running it; it spends about $0.20 (a cold start, two renders, a wait of about 2 minutes for scale-to-zero, then a second cold start and render). Record the result in this phase's Verification notes.
 
 ## Todo List
 
-- [ ] Settings with production and development guards (`tests/test_config.py`)
-- [ ] `db.py` with `DB_FILENAME` and `0001_init.sql`, with migrations applied twice as a no-op, WAL on and FTS5 present (`tests/test_db.py`)
-- [ ] Registry with the Qwen entry, plus a second-model registration test that needs no schema change (`tests/test_registry.py`)
-- [ ] Graph builder, and a parity test against `modal/qwen21_uc_app.py:build_workflow`
-- [ ] Gateway: the real SDK poll path (pending, expired, done) and classification of real exception instances; permanent errors drop the cached handle
-- [ ] Storage: atomic PNG and thumbnail writes, 16-bit thumbnail normalization, sha256, `UnstorableResult`, and disk-guard refusal at the cap and at the free floor (`tests/test_storage.py`)
-- [ ] Job service: N distinct seeds for random and fixed modes, validation errors, disk guard refusing before insert, DB-only cancel of queued and submitted jobs, retry keeping params and seed, waiting reasons and the 30-minute queue limit (`tests/test_jobs.py`)
-- [ ] Worker: at most 4 in flight per backend, lock held across spawn, done path with image metadata, failed path storing the ComfyUI text, late result discarded after cancel, transient and permanent spawn errors, timeout without a Modal cancel, dispatch paused per backend, one unstorable result next to a normal one, resume after restart (`tests/test_worker.py`)
-- [ ] Opt-in live test written, sequential A → B → A, and skipped by default
-- [ ] [OWNER-GATED] Live test run once with the owner's go-ahead
+- [x] Settings with production and development guards (`tests/test_config.py`)
+- [x] `db.py` with `DB_FILENAME` and `0001_init.sql`, with migrations applied twice as a no-op, WAL on and FTS5 present (`tests/test_db.py`)
+- [x] Registry with the Qwen entry, plus a second-model registration test that needs no schema change (`tests/test_registry.py`)
+- [x] Graph builder, and a parity test against `modal/qwen21_uc_app.py:build_workflow`
+- [x] Gateway: the real SDK poll path (pending, expired, done) and classification of real exception instances; permanent errors drop the cached handle
+- [x] Storage: atomic PNG and thumbnail writes, 16-bit thumbnail normalization, sha256, `UnstorableResult`, and disk-guard refusal at the cap and at the free floor (`tests/test_storage.py`)
+- [x] Job service: N distinct seeds for random and fixed modes, validation errors, disk guard refusing before insert, DB-only cancel of queued and submitted jobs, retry keeping params and seed, waiting reasons and the 30-minute queue limit (`tests/test_jobs.py`)
+- [x] Worker: at most 4 in flight per backend, lock held across spawn, done path with image metadata, failed path storing the ComfyUI text, late result discarded after cancel, transient and permanent spawn errors, timeout without a Modal cancel, dispatch paused per backend, one unstorable result next to a normal one, resume after restart (`tests/test_worker.py`)
+- [x] Opt-in live test written (A → B, scale to zero, A on a fresh container), and skipped by default
+- [x] [OWNER-GATED] Live test run once with the owner's go-ahead
 
 ## Success Criteria
 
@@ -455,7 +457,7 @@ Delete: none.
   - `test_job_moves_from_queued_to_submitted_to_done` asserts that the image row keeps model, prompt, negative, seed, width, height, steps, cfg, `duration_s` and `est_cost_usd`.
   - `test_submitted_job_completes_after_worker_restart` builds a brand-new `Worker` on the same DB and the same fake backend state, and the job completes.
   - `test_unstorable_result_fails_only_its_own_job`: an oversized result and a 16-bit PNG sit next to a normal result. The normal job completes in the same tick, the oversized one fails with its size, and the 16-bit one completes with a normalized thumbnail.
-- **Criterion 3:** the parity test is green, and the owner-approved live test shows the two sequential same-seed renders pixel-identical, with the second taking more than 5 s.
+- **Criterion 3:** the parity test is green, and the owner-approved live test shows the two same-seed renders pixel-identical, with the second rendered on a fresh container and taking more than 5 s.
 - **Criterion 4** (engine side):
   - A failed poll stores the exact ComfyUI text, and `retry_job` creates a job with the same params, seed and graph.
   - `test_cancelling_a_running_job_discards_its_late_result_without_a_modal_cancel` passes; the fake's `calls` log shows no cancel.
@@ -475,9 +477,14 @@ uv run ruff check
 uv run pytest -q
 uv run pytest -q tests/test_modal_gateway.py tests/test_graph_parity.py tests/test_worker.py -v
 uv run python -c "import sqlite3; c=sqlite3.connect(':memory:'); c.execute('create virtual table t using fts5(x)'); print('fts5 ok')"
-# [OWNER-GATED] real generations; spends about $0.10
+# [OWNER-GATED] real generations; spends about $0.20
 ATELIER_LIVE_TESTS=1 uv run pytest -m live -q -s
 ```
+
+### Verification notes (2026-09-26, owner-approved live runs)
+- **First run (A → B → A on one warm container): the timing assertion failed.** The second A came back in 2.3 s, pixel-identical but served by ComfyUI's output cache even though B ran in between. The test did its job: it showed that the sequential-order assumption was wrong. It was not loosened.
+- **Second run (A → B, wait for scale-to-zero, then A on a fresh container): passed in 262 s.** The two same-seed renders are pixel-identical, the fresh-container render took more than 5 s, and B differs from A by a mean absolute pixel difference above 5.0. Criterion 3 is proven for a real re-render, and the backend scaled itself to zero in between.
+- **Independent code review:** 15 findings (1 High, 7 Medium, 7 Low), all accepted and fixed before the engine commit. See [code-review-engine.md](./reports/code-review-engine.md).
 
 ## Risk Assessment
 

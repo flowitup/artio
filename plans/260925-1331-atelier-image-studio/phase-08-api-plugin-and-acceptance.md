@@ -364,7 +364,7 @@ The executor fills this in during step 10. Every live step is **[OWNER-GATED]**.
 |---|---|---|---|
 | 1 | Private browser session: `atelier.flowitup.com` redirects to the `flowitupteam` login. On the server, `curl` to 127.0.0.1:8090 with no or garbage JWT returns 403. | | |
 | 2 | Cold backend: submit a job, see queued → running → done with no 524; the image page shows all settings; reload; `deploy.sh stop` and `start` mid-job and the job completes. | | |
-| 3 | Run a different prompt first, then remix an earlier image with the same seed and settings; the two PNGs are pixel-identical; the sequential live test from phase 2 has passed. | | |
+| 3 | Wait until the backend has scaled to zero (ComfyUI serves an identical graph from its cache on a warm container), then remix an earlier image with the same seed and settings; the two PNGs are pixel-identical; the fresh-container live test from phase 2 has passed. | | |
 | 4 | Upload a broken workflow, see its error, and retry a failed job. Cancel one queued job and one running job; the running one shows the "GPU may still finish" note. | | |
 | 5 | The model picker lists the registry; the gallery model filter works; the second-model test is green in CI. | | |
 | 6 | Status matches `modal container list`; warm 5 min is warm within about 70 s; zero about 60 s after expiry and after `deploy.sh stop`; Stop with jobs reaches 0 containers within about 10 s; a job succeeds after `modal app stop --yes` and a redeploy. | | |

@@ -97,7 +97,7 @@ Phases run strictly in order because they share `main.py`, `jobs.py`, `worker.py
 |---|---|---|
 | 1 | Access redirect and origin 403 | 3 (JWT and route tests), 4 (live), 8 (record) |
 | 2 | Job lifecycle, metadata, persistence and restart | 2, 3, 4 (cold start, restart mid-job), 8 |
-| 3 | Determinism | 2 (graph parity, sequential live test), 8 |
+| 3 | Determinism | 2 (graph parity, fresh-container live test), 8 |
 | 4 | Errors, retry and cancel | 2, 3, 7 (ComfyUI validation text), 8 |
 | 5 | Model registry, filter and second model with no migration | 2, 3, 8 |
 | 6 | GPU status, warm-up and stop | 1 (`ping` probe), 6, 8 |
