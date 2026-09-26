@@ -123,13 +123,21 @@ stops at a host-key warning. The Mac was cleaned up at the same time:
 Where else the old key could still be trusted was checked right after, read-only:
 - GitHub: it isn't a login, signing or deploy key on the owner's account, or on any of the 44
   repositories the account administers (none of them has a deploy key at all).
-- Hetzner: it is still registered as the SSH key `mac-to-hetzner` in the `learnflow` project
-  (created 2026-07-20). That project has no servers, so the entry opens nothing today, but
-  Hetzner would install it on any new server or rescue session it is selected for. The owner
-  asked to delete it (2026-09-27), but the project's `hcloud` API token — which worked earlier
-  the same session — was rejected as unauthorized when the deletion was attempted, so it
-  wasn't removed. **Pending:** delete `mac-to-hetzner` (and the unrelated `hetzner-dev` entry)
-  from the Hetzner console under Security → SSH keys, or after refreshing the `hcloud` token.
+- Hetzner: the old key was registered in **two** projects, under two different names (matched
+  by fingerprint, not name):
+  - In the project that runs `folio-prod-1` (46.224.167.14), as `hetzner-deploy`. This was
+    **deleted 2026-09-27** with a fresh Read-Write token the owner issued; that project now has
+    no SSH keys registered.
+  - In a second project (the one first read through the `learnflow` `hcloud` context), as
+    `mac-to-hetzner` (created 2026-07-20). Its API token was revoked mid-session — it made live
+    calls at ~00:30 and was rejected as unauthorized by ~00:53, with the local token file
+    unchanged since July, so the revocation happened at Hetzner's side. That blocked the CLI
+    from deleting the entry. **Pending:** delete `mac-to-hetzner` (and the unrelated
+    `hetzner-dev` coolify entry) from that project, via the console under Security → SSH keys
+    or a fresh token for it.
+
+  A registered key opens nothing on its own, but Hetzner would install it on any new server or
+  rescue session it is selected for, so both registrations are worth clearing.
 - GCP `flowitup-folio-prod`: there are no VMs, and the owner's OS Login profile holds no keys.
   The project-wide SSH keys couldn't be read (the account lacks `compute.projects.get`), but
   with no VMs they apply to nothing.
