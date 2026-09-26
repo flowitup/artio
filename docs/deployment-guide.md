@@ -129,15 +129,16 @@ Where else the old key could still be trusted was checked right after, read-only
     **deleted 2026-09-27** with a fresh Read-Write token the owner issued; that project now has
     no SSH keys registered.
   - In a second project (the one first read through the `learnflow` `hcloud` context), as
-    `mac-to-hetzner` (created 2026-07-20). Its API token was revoked mid-session — it made live
-    calls at ~00:30 and was rejected as unauthorized by ~00:53, with the local token file
-    unchanged since July, so the revocation happened at Hetzner's side. That blocked the CLI
-    from deleting the entry. **Pending:** delete `mac-to-hetzner` (and the unrelated
-    `hetzner-dev` coolify entry) from that project, via the console under Security → SSH keys
-    or a fresh token for it.
+    `mac-to-hetzner` (created 2026-07-20), alongside `hetzner-dev`, `plane` and a
+    `mt.bui.fr@gmail.com` key. That whole project was **deleted** during the same 2026-09-27
+    cleanup: its API token, which made live calls at ~00:30, was rejected as unauthorized by
+    ~00:53 (the local token file was unchanged since July, so the change was Hetzner-side), and
+    the owner confirmed the console now lists only the `folio-prod` project. Deleting the
+    project removed `mac-to-hetzner` and `hetzner-dev` with it.
 
-  A registered key opens nothing on its own, but Hetzner would install it on any new server or
-  rescue session it is selected for, so both registrations are worth clearing.
+  With both registrations gone, the old key is no longer registered in any Hetzner project the
+  owner holds. A registered key opens nothing on its own, but Hetzner would have installed it on
+  any new server or rescue session it was selected for, which is why clearing it mattered.
 - GCP `flowitup-folio-prod`: there are no VMs, and the owner's OS Login profile holds no keys.
   The project-wide SSH keys couldn't be read (the account lacks `compute.projects.get`), but
   with no VMs they apply to nothing.
