@@ -601,15 +601,15 @@ Delete: none.
 
 ## Todo List
 
-- [ ] Dockerfile with digest-pinned bases, allowlist `.dockerignore`, and `compose.yaml` with the fixed subnet
-- [ ] `deploy/deploy.sh` with the digest grammar, provenance checks, detached apply, and `rollback | stop | start | status`; hermetic tests; `shellcheck` clean
-- [ ] `ci.yml`, `deploy.yml` and the split `deploy-modal.yml`: actions pinned by SHA, `permissions: {}`, `persist-credentials: false`, environment `production`, no build skip
+- [x] Dockerfile with digest-pinned bases, allowlist `.dockerignore`, and `compose.yaml` with the fixed subnet
+- [x] `deploy/deploy.sh` with the digest grammar, provenance checks, detached apply, and `rollback | stop | start | status`; hermetic tests; `shellcheck` clean
+- [x] `ci.yml`, `deploy.yml` and the split `deploy-modal.yml`: actions pinned by SHA, `permissions: {}`, `persist-credentials: false`, environment `production`, no build skip
 - [ ] Local confined container run passes (uid 10001, read-only, `/healthz` with live loops, `python -m modal` present, revision label)
-- [ ] `docs/deployment-guide.md`: setup, key audit, `.env` table, the `deploy.sh` subcommands, egress, tunnel runbook
-- [ ] [OWNER-GATED] Root-key and Tailscale audit recorded; any other unrestricted CI key surfaced to the owner
+- [x] `docs/deployment-guide.md`: setup, key audit, `.env` table, the `deploy.sh` subcommands, egress, tunnel runbook
+- [x] [OWNER-GATED] Root-key and Tailscale audit recorded; any other unrestricted CI key surfaced to the owner
 - [ ] [OWNER-GATED] LearnFlow key restricted to rrsync; LearnFlow deploy green; shell refused
 - [ ] [OWNER-GATED] Access app, service token (1 year, expiry recorded, rotation reminder set), AUD, SameSite=Lax
-- [ ] [OWNER-GATED] Modal runtime and CI tokens, spend limit (plus alerts if offered), now-unused proxy-auth tokens revoked
+- [x] [OWNER-GATED] Modal runtime and CI tokens, spend limit (plus alerts if offered), now-unused proxy-auth tokens revoked
 - [ ] [OWNER-GATED] Hetzner Volume created, attached, mounted by UUID with `nofail`, sentinel present
 - [ ] [OWNER-GATED] `/opt/atelier` files, `.env`, subnet check, egress unit, restricted key, host key pinned
 - [ ] [OWNER-GATED] GitHub repo, `production` environment and its secrets; first deploy green
@@ -691,7 +691,29 @@ All secrets were copied by the owner straight into their password manager. None 
   - Volume `atelier-data` (ID 106963035) was created: 50 GB in Falkenstein, attached to `folio-prod-1` with manual mounting, so it is neither formatted nor mounted yet.
   - It costs €3.43/month including VAT (€2.86 before VAT).
   - `folio-prod-1` is a CX33 in `eu-central`.
-- **Still to do:** step 8 (key audit), step 9 (LearnFlow key), steps 13–21, the rotation reminder, and recording the expiry date in `docs/deployment-guide.md` once that guide exists.
+- **Step 8, root-key audit (read-only, owner-approved):** root's `authorized_keys` held two unrestricted ed25519 keys and no `authorized_keys2`.
+
+  | Fingerprint | Holder | Options |
+  |---|---|---|
+  | `SHA256:JZx+jCJH…` | the owner's Mac (`~/.ssh/hetzner-deploy`) **and** LearnFlow's CI secret `SSH_PRIVATE_KEY` | none |
+  | `SHA256:Qik/LV97…` | Folio's CI (`folio-ci-deploy`) | none |
+
+  - The holders were mapped from sshd's accepted-publickey journal: LearnFlow's 2026-09-13 16:27 deploy came from a GitHub runner using `JZx+`, and Folio's deploys come from Azure runner IPs using `Qik/`.
+  - sshd settings: `PermitRootLogin prohibit-password`, password and keyboard-interactive login off, `AcceptEnv` limited to `LANG`, `LC_*`, `COLORTERM` and `NO_COLOR`, and `PermitUserEnvironment no`.
+  - Tailscale SSH is off (`RunSSH false`), and `rrsync` is at `/usr/bin/rrsync` (rsync 3.4.1).
+- **Owner decisions after the audit:**
+  - LearnFlow gets its own restricted key, and the owner's laptop key is rotated, because its private half had sat in LearnFlow's CI secrets since July.
+  - Folio's unrestricted CI key is **accepted for now and tracked** as a residual risk, pending a separate Folio hardening task.
+- **Step 9 progress:**
+  - Key `learnflow-ci` (`SHA256:sRwFrc79…`) was added with `restrict,command="/usr/bin/rrsync -wo /var/www/learnflow"`. A shell request is refused with "rrsync error".
+  - `rrsync` (lines 303–307 and 333–334 of `/usr/bin/rrsync`) glues absolute client paths onto the restricted directory, so LearnFlow's `remote_path` becomes `./`.
+  - LearnFlow's workflow gets a **pre-upload guard**: the upload runs only if a shell request returns rrsync's refusal. With an unrestricted key the relative path would point into `/root`. The guard was tested locally in both directions.
+  - Waiting on the owner to replace LearnFlow's `SSH_PRIVATE_KEY` secret. The workflow change is pushed afterwards.
+- **Laptop key rotation:**
+  - New admin key `mac-admin-folio-prod-2026-09` (`SHA256:DJ+/jxTo…`) was added and tested, and the `folio-prod` SSH alias now uses `~/.ssh/folio-prod-admin` (`~/.ssh/config` backed up).
+  - The old `JZx+` line is removed only after LearnFlow deploys with its own key.
+  - Suggested to the owner: add a passphrase with `ssh-keygen -p -f ~/.ssh/folio-prod-admin` and use the macOS Keychain.
+- **Still to do:** step 5 (the local container check, blocked while Docker Desktop's VM is down), the LearnFlow secret swap and old-key removal, steps 13–21, and the owner's calendar reminder to rotate the service token two weeks before 2027-09-26. The expiry date is recorded in `docs/deployment-guide.md`.
 
 ## Risk Assessment
 
