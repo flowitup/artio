@@ -31,7 +31,7 @@ The items below are tracked to completion; some were already carried out by the 
 of the rest of the rollout. Each item that still needs doing is marked **pending** together
 with what it requires.
 
-### Root SSH key audit and the LearnFlow key restriction — audit done, restriction in progress
+### Root SSH key audit and the LearnFlow key restriction — done
 
 Before any Atelier data lands on the host, every key in root's `authorized_keys` must be
 mapped to its holder, and Tailscale SSH's status must be recorded. This is read-only: it
@@ -66,7 +66,7 @@ LearnFlow's CI secret since July. Root's keys now are:
 
 | Fingerprint | Holder | Options | Status |
 |---|---|---|---|
-| `SHA256:JZx+jCJH…` | the owner's old laptop key (`~/.ssh/hetzner-deploy`), still LearnFlow's CI secret | none | removed once LearnFlow deploys with its own key |
+| ~~`SHA256:JZx+jCJH…`~~ | the owner's old laptop key (`~/.ssh/hetzner-deploy`), LearnFlow's CI secret until 2026-09-26 | none | **removed** 2026-09-26 22:11 UTC (backup `authorized_keys.bak-20260926T221116Z`); a login with it is now refused |
 | `SHA256:Qik/LV97…` | Folio's CI (`folio-ci-deploy`) | none | accepted residual risk, tracked for a separate Folio hardening task |
 | `SHA256:sRwFrc79…` | LearnFlow's CI (`learnflow-ci`) | `restrict,command="/usr/bin/rrsync -wo /var/www/learnflow"` | added 2026-09-26 |
 | `SHA256:DJ+/jxTo…` | the owner's Mac (`mac-admin-folio-prod-2026-09`, `~/.ssh/folio-prod-admin`) | none | added 2026-09-26; the laptop's `folio-prod` SSH alias uses it |
@@ -87,7 +87,17 @@ shell request with the key and uploads only if the server answers with rrsync's 
 an unrestricted key, `./` would point into root's home directory, so the guard stops a wrong
 secret from ever uploading there.
 
+LearnFlow's first deploy on its own key (run 36275371916, 2026-09-26) passed:
+- the guard ran and the upload went through;
+- the site's files were updated at 22:10 UTC;
+- nothing landed in a nested directory or in root's home;
+- sshd logged only the `learnflow-ci` key from the runner.
+
 These are the only changes made to LearnFlow. Folio, cdn and Atelier are unaffected by them.
+
+The old `hetzner-deploy` key is still authorized on the separate dev server `dev-deploy`
+(46.224.60.209). Its private half sat in LearnFlow's GitHub secrets from July to September, so
+rotating it there is worth doing too.
 
 ### Cloudflare Access application — done
 

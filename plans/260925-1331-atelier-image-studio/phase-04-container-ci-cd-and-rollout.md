@@ -608,7 +608,7 @@ Delete: none.
 - [x] Local confined container run passes (uid 10001, read-only, `/healthz` with live loops, `python -m modal` present, revision label)
 - [x] `docs/deployment-guide.md`: setup, key audit, `.env` table, the `deploy.sh` subcommands, egress, tunnel runbook
 - [x] [OWNER-GATED] Root-key and Tailscale audit recorded; any other unrestricted CI key surfaced to the owner
-- [ ] [OWNER-GATED] LearnFlow key restricted to rrsync; LearnFlow deploy green; shell refused
+- [x] [OWNER-GATED] LearnFlow key restricted to rrsync; LearnFlow deploy green; shell refused
 - [ ] [OWNER-GATED] Access app, service token (1 year, expiry recorded, rotation reminder set), AUD, SameSite=Lax
 - [x] [OWNER-GATED] Modal runtime and CI tokens, spend limit (plus alerts if offered), now-unused proxy-auth tokens revoked
 - [x] [OWNER-GATED] Hetzner Volume created, attached, mounted by UUID with `nofail`, sentinel present
@@ -736,11 +736,18 @@ All secrets were copied by the owner straight into their password manager. None 
     - The host key `SHA256:6dN+8Mw+…` matched between `ssh-keyscan` and the server's own copy.
     - `id` and a shell request were refused with exit 2. A well-formed deploy without a token stopped at "no registry token on stdin". All three refusals were logged in the journal.
   - **Step 17 (in part):** the `production` environment was created with a custom branch policy (`main` only), and `HETZNER_HOST` and `HETZNER_KNOWN_HOSTS` were set. There are no repository-level secrets.
+- **Credentials and LearnFlow (2026-09-27 00:08 Paris time):**
+  - The owner set LearnFlow's `SSH_PRIVATE_KEY`, plus Atelier's `ATELIER_DEPLOY_SSH_KEY`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET`.
+  - LearnFlow's workflow commit `0b9554e` was pushed. Run 36275371916 was green, the guard passed, and the files were updated at 22:10 UTC.
+    - There was no nested or stray upload, and sshd logged only `learnflow-ci` from the runner. `learn.flowitup.com` still returns a 302 to Access.
+  - The old `JZx+` line was then removed (backup `authorized_keys.bak-20260926T221116Z`). A login with it is refused, and the `folio-prod` alias still works.
+  - The LearnFlow private-key file was deleted from the laptop.
+  - Editing `.env` over SSH failed: the server has no terminfo for Ghostty (`xterm-ghostty`). The fix is `TERM=xterm-256color ssh -t folio-prod nano /opt/atelier/.env`.
 - **Still to do:**
-  - The owner sets the credentials: LearnFlow's `SSH_PRIVATE_KEY`, Atelier's `ATELIER_DEPLOY_SSH_KEY`, `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` (the `atelier-ci` token), and the three `.env` values.
-  - Then the LearnFlow push and check, and the old-key removal.
-  - Steps 18–21.
+  - The owner fills in the three `.env` credentials.
+  - Then steps 18–21.
   - The owner's calendar reminder to rotate the service token two weeks before 2027-09-26.
+  - Follow-ups outside this plan: rotate `hetzner-deploy` on `dev-deploy`, and harden Folio's CI key.
 
 ## Risk Assessment
 
