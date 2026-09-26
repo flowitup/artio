@@ -614,8 +614,8 @@ Delete: none.
 - [x] [OWNER-GATED] Hetzner Volume created, attached, mounted by UUID with `nofail`, sentinel present
 - [x] [OWNER-GATED] `/opt/atelier` files, `.env`, subnet check, egress unit, restricted key, host key pinned
 - [x] [OWNER-GATED] GitHub repo, `production` environment and its secrets; first deploy green
-- [ ] [OWNER-GATED] Tunnel cutover sub-steps (a)–(g), each passed; DNS route
-- [ ] [OWNER-GATED] Cold-start job, restart-mid-job check, `deploy-modal` dispatch
+- [x] [OWNER-GATED] Tunnel cutover sub-steps (a)–(g), each passed; DNS route
+- [x] [OWNER-GATED] Cold-start job, restart-mid-job check, `deploy-modal` dispatch
 
 ## Success Criteria
 
@@ -761,8 +761,29 @@ All secrets were copied by the owner straight into their password manager. None 
     - the Access JWKS returned 200.
   - The Folio containers were untouched, and folio returned 200, learn 302 and cdn 403 as its baseline.
   - The laptop's copies of the deploy key and the pinned host key were deleted.
+- **Second deploy:** run 36276612738 was green; `current=a119426…` and `previous=458f387…`, so the rollback target is kept on the real host.
+- **Step 19, tunnel cutover (2026-09-27 00:35–00:38 Paris time), every sub-step passed:**
+  - **(a)** Backup `config.yml.bak-20260926T223546Z`, a diff of exactly two added lines, and `ingress validate` OK; each hostname hit its intended rule. `route dns` added the CNAME using the server's `origincert`.
+  - **(b)** Baselines on three samples: folio 200, cdn 403 (its storage backend's `AccessDenied`), learn 302 to Access.
+  - **(c)** The replica (`--metrics 127.0.0.1:20242`) registered 4 connections within about 4 s, and `/ready` returned 200.
+  - **(d)** The live config was replaced in place (0644 root kept), and the restart re-registered within about 2 s; `/ready` returned 200.
+  - **(e)** The neighbours matched their baselines, and `atelier.flowitup.com` returned a 302 to Access.
+  - **(f)** The replica was stopped: one cloudflared process left, and its metrics port closed.
+  - **(g)** The same results as (e).
+  - The `.new` file and the timestamp marker were removed.
+- **Step 20, live acceptance (about $0.15 of GPU, covered by Modal's free credits):**
+  - The owner logged in through Access.
+  - Cold backend (`modal container list` returned `[]`): one 9:16 image went queued → running → done in 62 s, with no 524.
+  - Two more images: `deploy.sh stop` (1 s, maintenance on) then `deploy.sh start` (6 s, healthy, maintenance cleared) ran while both rendered. Both finished (21 s and 33 s), and the gallery shows all three.
+  - The files are on the volume and owned by 10001.
+  - Known issue for phase 7: the gallery shows "Next" whenever a page has images, even when no next page exists.
+- **Step 21, Modal redeploy from CI:**
+  - The first dispatch failed with "Token ID is malformed": the `atelier-ci` values the owner had pasted into GitHub weren't a real token, and its secret was lost.
+  - Claude deleted `atelier-ci` (the owner said yes) and created `atelier-ci-2`. The owner saved it through a hidden-prompt `gh secret set` helper.
+  - The re-run (36278211775) was green, and `modal app list` shows `qwen21-uc` deployed.
+- **Owner decisions:** auto-renew for `flowitup.com` stays **off**; it expires 2027-04-07 and is renewed by hand. The credential inventory is in `docs/deployment-guide.md` ("Where each credential lives").
 - **Still to do:**
-  - Then steps 19–21.
+  - Remaining owner item: the calendar reminder to rotate the Access service token two weeks before 2027-09-26.
   - The owner's calendar reminder to rotate the service token two weeks before 2027-09-26.
   - Follow-ups outside this plan: rotate `hetzner-deploy` on `dev-deploy`, and harden Folio's CI key.
 

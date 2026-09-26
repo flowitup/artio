@@ -25,6 +25,28 @@ dropped, `no-new-privileges`, and binds only to `127.0.0.1:8090`. It sits on its
 bridge network, separate from Folio's and LearnFlow's, so a compromise inside Atelier cannot
 reach their containers or volumes.
 
+## Where each credential lives
+
+Every credential lives only where it is used. None is in this repository; CI runs a gitleaks scan of
+the whole git history on every change. This table records names and places, never values.
+
+| Credential | Stored in | Used by | To replace it |
+|---|---|---|---|
+| Modal token `atelier-runtime-2` (ID and secret) | `/opt/atelier/.env` on folio-prod-1 (root, 0600) | the Atelier container | New token in Modal; rewrite the two lines (editor, or the hidden-prompt helper); `deploy.sh start`; delete the old token |
+| Modal token `atelier-ci-2` (ID and secret) | GitHub `flowitup/atelier` → Environments → `production` → `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` | the Deploy Modal workflow | New token in Modal; `gh secret set` both from stdin; delete the old token |
+| Access service token `atelier-plugin`, Client ID (not secret) | `.env` as `ATELIER_PLUGIN_CLIENT_ID`; also shown on the token's page in Zero Trust | the app's API authorization | Stays the same when the secret is rotated |
+| Access service token `atelier-plugin`, Client Secret | wherever the owner saved it at creation; Cloudflare never shows it again | the Claude plugin (not set up yet) | Zero Trust → Service credentials → `atelier-plugin` → Rotate secret; the Client ID and `.env` don't change |
+| Deploy key `atelier-deploy` (private half) | GitHub `production` secret `ATELIER_DEPLOY_SSH_KEY` only; the laptop copy was deleted | the Deploy workflow | New key; replace its line in root's `authorized_keys` (same forced command); set the secret |
+| LearnFlow key `learnflow-ci` (private half) | GitHub `flowitup/learnflow` repository secret `SSH_PRIVATE_KEY` only; the laptop copy was deleted | LearnFlow's deploy | New key; replace its `rrsync` line; set the secret |
+| Public halves of the server keys | root's `authorized_keys` on folio-prod-1 (see the audit table below) | sshd | — |
+| Owner admin key `mac-admin-folio-prod-2026-09` | `~/.ssh/folio-prod-admin` on the owner's Mac (0600, no passphrase yet) | the `folio-prod` SSH alias | New key; add, test, then remove the old line |
+| The owner's own Modal CLI token (created 2026-09-25, unnamed) | `~/.modal.toml` on the owner's Mac, profile `yaiba2307` | the owner's `modal` commands | `modal token new` |
+| GitHub CLI logins | the macOS Keychain, through `gh` | `gh` commands | `gh auth login` |
+| Tunnel credentials and origin certificate | `/etc/cloudflared/` on folio-prod-1 (Folio's existing setup) | cloudflared | — |
+
+`HETZNER_HOST` and `HETZNER_KNOWN_HOSTS` are stored as `production` secrets too, but they are not
+credentials: they hold the server's address and its public host key.
+
 ## One-time setup
 
 The items below are tracked to completion; some were already carried out by the owner ahead
@@ -474,6 +496,10 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
 - **Disk usage:** the app's own header shows usage against the volume's cap, and refuses new
   generation jobs at or over the cap, or when free space drops under the floor; `df -h
   /mnt/atelier-data` gives the underlying number directly.
+- **The domain:** `flowitup.com` is registered at Cloudflare with auto-renew **off**, by the
+  owner's choice on 2026-09-27. It expires on **2027-04-07** and must be renewed by hand before
+  then (about $10.45 a year). Every site behind the tunnel (Folio, cdn, LearnFlow and Atelier)
+  depends on it.
 - **Token rotation reminders:** the Cloudflare Access service token, due 2027-09-26 at 17:47 Paris time (see
   above). Rotating it means, in order: creating the new token in Access; adding it to the
   application's Service Auth policy (a new token is not automatically attached to any policy);
