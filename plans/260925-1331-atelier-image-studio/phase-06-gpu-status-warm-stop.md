@@ -261,23 +261,23 @@ The in-memory state is `status` (the `GpuStatus` caches), `ping_calls`, `last_pi
 <!-- Updated: Red Team 2026-09-25 - F15 GPU status model -->
 
 Create:
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/gpu.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/gpu.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/gpu.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/gpu_panel.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/gpu_stop_confirm.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/test_gpu.py`
+- `/Users/sweet-home/Works/atelier/atelier/gpu.py`
+- `/Users/sweet-home/Works/atelier/atelier/routes/gpu.py`
+- `/Users/sweet-home/Works/atelier/atelier/templates/gpu.html`
+- `/Users/sweet-home/Works/atelier/atelier/templates/partials/gpu_panel.html`
+- `/Users/sweet-home/Works/atelier/atelier/templates/partials/gpu_stop_confirm.html`
+- `/Users/sweet-home/Works/atelier/tests/test_gpu.py`
 
 Modify:
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/modal_gateway.py`: `stats`, `app_state`, `spawn_ping`, `stop_containers`, the `_modal_cli` helper, and the pure parsers `parse_app_state` and `parse_container_ids`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/worker.py`: `status`, `ensure_pinger`, the pinger step, `stop_backend`, and the circuit breaker in the poller's failure path.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/jobs.py`: `active_counts` and `cancel_all_for_backend`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/main.py`: include the GPU router, and start pingers for open windows at startup.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/pages.py`: the header-status handler adds the GPU summary from `worker.status`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/header_status.html`: the GPU badge.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/base.html`: a nav link to `/gpu`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/fakes.py`: the fake gateway gains scripted stats and app state, `spawn_ping` with an optional test hook for slow spawns, `stop_containers` with an "already stopped" option, and entries in its ordered `calls` log.
-- `/Users/sweet-home/Works/qwen21-uc-modal/docs/deployment-guide.md`: the "Backend unhealthy" runbook entry.
+- `/Users/sweet-home/Works/atelier/atelier/modal_gateway.py`: `stats`, `app_state`, `spawn_ping`, `stop_containers`, the `_modal_cli` helper, and the pure parsers `parse_app_state` and `parse_container_ids`.
+- `/Users/sweet-home/Works/atelier/atelier/worker.py`: `status`, `ensure_pinger`, the pinger step, `stop_backend`, and the circuit breaker in the poller's failure path.
+- `/Users/sweet-home/Works/atelier/atelier/jobs.py`: `active_counts` and `cancel_all_for_backend`.
+- `/Users/sweet-home/Works/atelier/atelier/main.py`: include the GPU router, and start pingers for open windows at startup.
+- `/Users/sweet-home/Works/atelier/atelier/routes/pages.py`: the header-status handler adds the GPU summary from `worker.status`.
+- `/Users/sweet-home/Works/atelier/atelier/templates/partials/header_status.html`: the GPU badge.
+- `/Users/sweet-home/Works/atelier/atelier/templates/base.html`: a nav link to `/gpu`.
+- `/Users/sweet-home/Works/atelier/tests/fakes.py`: the fake gateway gains scripted stats and app state, `spawn_ping` with an optional test hook for slow spawns, `stop_containers` with an "already stopped" option, and entries in its ordered `calls` log.
+- `/Users/sweet-home/Works/atelier/docs/deployment-guide.md`: the "Backend unhealthy" runbook entry.
 
 Delete: none.
 
@@ -394,7 +394,7 @@ The GPU controls were pushed as `cd8497c`; the deploy was green, and the app log
 ## Verification
 
 ```bash
-cd /Users/sweet-home/Works/qwen21-uc-modal
+cd /Users/sweet-home/Works/atelier
 uv run ruff check && uv run pytest -q tests/test_gpu.py -v && uv run pytest -q
 # Free Modal API reads (no GPU time)
 uv run modal app list --json

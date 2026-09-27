@@ -2,7 +2,7 @@
 
 ### Executed Phase
 - Phase: phase-07-prompt-library-and-workflows (Implementation Steps 1-6; steps 7-8 owner-gated, not done)
-- Plan: /Users/sweet-home/Works/qwen21-uc-modal/plans/260925-1331-atelier-image-studio
+- Plan: /Users/sweet-home/Works/atelier/plans/260925-1331-atelier-image-studio
 - Status: completed (repository part only; commit/push and the live check are left for the controller/owner)
 
 ### Files Modified
