@@ -26,5 +26,14 @@
   <input type="number" id="count" name="count" min="1" max="8" value="{{ values.count or 1 }}">
 
   <button type="submit">Generate</button>
+
+  <fieldset role="group">
+    <input type="text" name="preset_name" placeholder="Preset name" aria-label="Preset name">
+    <button type="button" hx-post="/presets" hx-target="#preset-status" hx-swap="innerHTML">
+      Save as preset
+    </button>
+  </fieldset>
+  <div id="preset-status"></div>
 </form>
+<p><a href="/library">Prompt library</a></p>
 {% endblock %}

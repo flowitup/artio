@@ -533,6 +533,25 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
   - An occasional false trip (a one-off timeout, or a real but transient ComfyUI error) is expected
     to be rare; if it recurs without a real underlying cause, raise the breaker's 3-failure
     threshold in `worker.py` after telling the owner.
+- **Presets, library and custom workflows:** `/library` saves, loads and deletes named presets of
+  the generate form's own fields (prompt, negative, size, steps, cfg); loading one (`/generate?preset=`)
+  only prefills the form, so it is still validated against the current model schema on submit like
+  any other value typed there. Every image can be starred and tagged from its own page; `/gallery`
+  filters by any combination of `q` (prompt or tag text, prefix-matched), `tag`, `starred` and
+  `model` (including a "Custom workflows" option for images with no model, i.e. from a stored
+  workflow's own run). `/workflows` uploads a ComfyUI **API-format** graph (Workflow -> Export (API)
+  in ComfyUI, not a plain workflow save) for a chosen backend: at most 2 MB parsed, inside a 3 MB
+  request body checked before any parsing starts, and it must contain a `SaveImage` or
+  `PreviewImage` node or the upload is refused with a message. Running it takes a seed mode (random,
+  fixed with increments, or keep the graph's own seed -- "keep" only with a count of 1) and a count
+  of 1-8; a graph with no `KSampler`/`KSamplerAdvanced`/`RandomNoise` literal seed input can only be
+  run once, since every further run would render the same image. Deleting a stored workflow does not
+  touch any job that already ran it: each job keeps its own exact graph (`/jobs/{id}/graph.json`),
+  only the link back to the deleted workflow clears. An invalid graph is rejected by ComfyUI itself
+  at run time; the failed job's queue row shows its validation text verbatim, starting with
+  `ComfyUI rejected workflow:`, and Retry re-queues the same graph unchanged. All of this is
+  owner-only HTML, same as the rest of the app: the plugin's service identity cannot save a preset,
+  star or tag an image, or upload, run or delete a workflow.
 - **The domain:** `flowitup.com` is registered at Cloudflare with auto-renew **off**, by the
   owner's choice on 2026-09-27. It expires on **2027-04-07** and must be renewed by hand before
   then (about $10.45 a year). Every site behind the tunnel (Folio, cdn, LearnFlow and Atelier)

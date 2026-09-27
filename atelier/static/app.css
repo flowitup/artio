@@ -74,3 +74,17 @@
 #gpu-panel form button {
   width: auto;
 }
+
+/* Prompt library and custom workflows: keep per-row action buttons compact and on one line. */
+#library-content table td:last-child,
+#workflow-list table td:last-child {
+  white-space: nowrap;
+}
+
+#workflow-list form[action$="/run"] fieldset[role="group"] {
+  margin-bottom: 0;
+}
+
+.star-button.starred {
+  color: #b8860b;
+}

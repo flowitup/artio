@@ -15,7 +15,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from PIL import Image
 from starlette.testclient import TestClient
 
-from atelier import db, jobs
+from atelier import custom_workflows, db, jobs, library
 from atelier.config import Settings, load_settings
 from atelier.main import create_app
 from atelier.registry import DEFAULT_REGISTRY, Registry
@@ -150,10 +150,17 @@ def service_headers(access_key) -> dict[str, str]:
     return {"Cf-Access-Jwt-Assertion": token}
 
 
+_ROUTE_IDS_GRAPH = {
+    "1": {"class_type": "KSampler", "inputs": {"seed": 1}},
+    "2": {"class_type": "SaveImage", "inputs": {"images": ["1", 0]}},
+}
+
+
 @pytest.fixture
 def route_ids(conn, registry, settings, fake_gateway, rng, png_bytes) -> dict[str, int]:
-    """Seeds one finished job and its image directly through the engine (not the app), so route_ids has
-    a real row for every path-parameter name a GET route uses: image_id, batch_id, job_id."""
+    """Seeds one finished job and its image, one preset and one stored workflow directly through the
+    engine (not the app), so route_ids has a real row for every path-parameter name a GET route uses:
+    image_id, batch_id, job_id, preset_id, workflow_id."""
     model = next(iter(registry.models.values()))
     size = model.param_schema.default_size()
     request = jobs.BatchRequest(
@@ -178,4 +185,32 @@ def route_ids(conn, registry, settings, fake_gateway, rng, png_bytes) -> dict[st
     asyncio.run(worker.poll_once())
 
     image = conn.execute("SELECT id FROM images WHERE job_id = ?", (job["id"],)).fetchone()
-    return {"image_id": image["id"], "batch_id": batch_id, "job_id": job["id"]}
+
+    preset_id = library.save_preset(
+        conn,
+        "route ids preset",
+        model.id,
+        {
+            "prompt": "route ids preset prompt",
+            "negative": "",
+            "preset": "custom",
+            "width": size.width,
+            "height": size.height,
+            "steps": model.param_schema.steps_default,
+            "cfg": model.param_schema.cfg_default,
+        },
+        time.time(),
+    )
+    backend = registry.backend_for(model)
+    workflow_id = custom_workflows.store_workflow(
+        conn, registry, "route ids workflow", backend.id, _ROUTE_IDS_GRAPH, time.time()
+    )
+    conn.commit()
+
+    return {
+        "image_id": image["id"],
+        "batch_id": batch_id,
+        "job_id": job["id"],
+        "preset_id": preset_id,
+        "workflow_id": workflow_id,
+    }

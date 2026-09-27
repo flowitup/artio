@@ -14,6 +14,7 @@ import time
 from dataclasses import dataclass
 from typing import Literal
 
+from atelier import custom_workflows
 from atelier.config import Settings
 from atelier.registry import InvalidParams, Registry
 from atelier.storage import DiskGuardError, SavedImage, disk_status
@@ -47,20 +48,26 @@ class BatchRequest:
     count: int
 
 
-def _make_seeds(request: BatchRequest, rng: random.Random) -> list[int]:
-    if request.seed_mode == "random":
-        return rng.sample(range(1, 2**31), request.count)
-    if request.seed_mode != "fixed":
-        raise ValueError(f"seed_mode must be 'random' or 'fixed', got {request.seed_mode!r}")
-    if request.seed is None:
+def _seeds_for(seed_mode: str, seed: int | None, count: int, rng: random.Random) -> list[int]:
+    """Distinct random seeds, or an incrementing run starting at a fixed seed. Shared by generate
+    batches (BatchRequest, below) and custom-workflow batches (create_workflow_batch)."""
+    if seed_mode == "random":
+        return rng.sample(range(1, 2**31), count)
+    if seed_mode != "fixed":
+        raise ValueError(f"seed_mode must be 'random' or 'fixed', got {seed_mode!r}")
+    if seed is None:
         raise ValueError("fixed seed mode requires a seed")
-    seed, last = request.seed, request.seed + request.count - 1
+    last = seed + count - 1
     if seed < 0 or last > _MAX_SEED:
         raise InvalidParams(
-            f"fixed seed {seed} with count {request.count} must satisfy 0 <= seed and "
+            f"fixed seed {seed} with count {count} must satisfy 0 <= seed and "
             f"seed + count - 1 <= {_MAX_SEED}, got a range ending at {last}"
         )
-    return [seed + i for i in range(request.count)]
+    return [seed + i for i in range(count)]
+
+
+def _make_seeds(request: BatchRequest, rng: random.Random) -> list[int]:
+    return _seeds_for(request.seed_mode, request.seed, request.count, rng)
 
 
 def create_batch(
@@ -116,7 +123,7 @@ def create_batch(
         conn.execute(
             "INSERT INTO jobs (batch_id, model_id, backend_id, kind, params_json, graph_json, status, created_at) "
             "VALUES (?, ?, ?, 'generate', ?, ?, 'queued', ?)",
-            (batch_id, model.id, backend.id, json.dumps(params), json.dumps(graph), now),
+            (batch_id, model.id, backend.id, json.dumps(params), json.dumps(graph, ensure_ascii=False), now),
         )
     return batch_id
 
@@ -336,6 +343,98 @@ def cancel_all_for_backend(conn: sqlite3.Connection, backend_id: str) -> list[st
         (backend_id,),
     ).fetchall()
     return [row["call_id"] for row in rows if row["call_id"] is not None]
+
+
+def _graph_seed_for_display(graph: dict, targets: list[tuple[str, str]]) -> int | None:
+    """The seed already baked into a 'keep' run's graph, read (not written) for display in the queue
+    and job views. None when the graph has no seed input at all -- 'keep' still runs it as-is."""
+    if not targets:
+        return None
+    node_id, key = targets[0]
+    return graph[node_id]["inputs"][key]
+
+
+def create_workflow_batch(
+    conn: sqlite3.Connection,
+    registry: Registry,
+    settings: Settings,
+    workflow: custom_workflows.StoredWorkflow,
+    seed_mode: Literal["random", "fixed", "keep"],
+    seed: int | None,
+    count: int,
+    rng: random.Random,
+) -> int:
+    """Validates a custom-workflow run, checks the disk guard, then inserts one batch plus N queued
+    jobs with kind='workflow' and no model_id (the schema's CHECK allows this exactly for this kind).
+    Each job's graph is the workflow's own graph with its seed override applied (with_seed), except
+    in 'keep' mode, which sends the graph unchanged -- allowed only when count == 1, since running an
+    unmodified graph more than once would just render the same image N times."""
+    if not (1 <= count <= 8):
+        raise ValueError(f"count must be between 1 and 8, got {count}")
+    if seed_mode == "keep" and count != 1:
+        raise ValueError("'keep' seed mode is only allowed with count 1.")
+    if workflow.backend_id not in registry.backends:
+        raise ValueError(f"Unknown backend {workflow.backend_id!r}.")
+
+    # validate_api_graph already refuses this depth at upload time, but a graph stored before that
+    # check existed (or written straight to the database) must still be refused here, before
+    # with_seed's copy.deepcopy would otherwise hit Python's recursion limit on an already-paid-for
+    # dispatch -- checked with the same iterative (non-recursive) walk validate_api_graph itself uses.
+    if custom_workflows.graph_depth(workflow.graph) > custom_workflows.MAX_GRAPH_DEPTH:
+        raise ValueError(
+            f"This stored graph is nested more than {custom_workflows.MAX_GRAPH_DEPTH} levels deep "
+            "and can no longer be run safely; delete and re-upload it."
+        )
+
+    targets = custom_workflows.seed_targets(workflow.graph)
+    if count > 1 and not targets:
+        raise ValueError(
+            "This graph has no seed input (KSampler, KSamplerAdvanced or RandomNoise with a plain "
+            "integer value), so every run would render the same image. Use count 1, or upload a "
+            "graph with a seed input."
+        )
+
+    status = disk_status(conn, settings)
+    if status.refusal:
+        raise DiskGuardError(status.refusal)
+
+    seeds: list[int | None]
+    if seed_mode == "keep":
+        kept_seed = _graph_seed_for_display(workflow.graph, targets)
+        # Fixed and random seeds are already range-checked (_seeds_for); a kept seed comes straight
+        # from the graph itself, which can hold anything json.loads accepts, including ComfyUI's own
+        # 0..2**64-1 range. images.seed is a plain SQLite INTEGER (signed 64-bit): binding a value at
+        # or above 2**63 only fails once jobs.complete() tries to store the finished render, after
+        # Modal has already been paid for it. Catching it here, before the batch is even created,
+        # means the owner sees the problem instead of losing a render to it.
+        if kept_seed is not None and not (0 <= kept_seed <= _MAX_SEED):
+            raise ValueError(
+                f"This graph's own seed ({kept_seed}) is outside the range 0..{_MAX_SEED} that this "
+                "app can store; edit the graph's seed or run it with a different seed mode."
+            )
+        seeds = [kept_seed]
+    else:
+        seeds = list(_seeds_for(seed_mode, seed, count, rng))
+
+    backend = registry.backends[workflow.backend_id]
+    now = time.time()
+    cursor = conn.execute(
+        "INSERT INTO batches (created_at, model_id, kind, base_params_json, count) "
+        "VALUES (?, NULL, 'workflow', ?, ?)",
+        (now, json.dumps({"workflow": workflow.name}), count),
+    )
+    batch_id = cursor.lastrowid
+    assert batch_id is not None
+
+    for s in seeds:
+        graph = workflow.graph if seed_mode == "keep" else custom_workflows.with_seed(workflow.graph, s)
+        params = {"workflow": workflow.name, "seed": s}
+        conn.execute(
+            "INSERT INTO jobs (batch_id, model_id, backend_id, kind, params_json, graph_json, "
+            "workflow_id, status, created_at) VALUES (?, NULL, ?, 'workflow', ?, ?, ?, 'queued', ?)",
+            (batch_id, backend.id, json.dumps(params), json.dumps(graph, ensure_ascii=False), workflow.id, now),
+        )
+    return batch_id
 
 
 def has_active(conn: sqlite3.Connection, *, batch_id: int | None = None) -> bool:

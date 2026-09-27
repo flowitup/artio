@@ -1,0 +1,6 @@
+<span id="star-button">
+  <button hx-post="/images/{{ image.id }}/star" hx-target="#star-button" hx-swap="outerHTML"
+          class="{{ 'star-button starred' if image.starred else 'star-button' }}">
+    {{ '★ Starred' if image.starred else '☆ Star' }}
+  </button>
+</span>

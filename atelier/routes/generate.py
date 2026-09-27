@@ -13,7 +13,7 @@ import random
 from fastapi import APIRouter, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from atelier import db, jobs
+from atelier import db, jobs, library
 from atelier.registry import Model, Registry, UnknownModel
 from atelier.storage import DiskGuardError
 
@@ -114,6 +114,16 @@ def _remix_values(conn, image_id: int) -> dict | None:
     }
 
 
+def _preset_values(conn, preset_id: int) -> dict | None:
+    """Prefills the form from a saved preset: its own model plus its stored prompt/size/steps/cfg.
+    Unlike remix, this leaves the seed and count at their form defaults (random, 1): a preset is a
+    reusable template, not a specific past image to reproduce."""
+    preset = library.get_preset(conn, preset_id)
+    if preset is None:
+        return None
+    return {"model_id": preset.model_id, **preset.params}
+
+
 def _model_for_values(registry: Registry, values: dict) -> Model:
     model_id = values.get("model_id")
     if model_id and model_id in registry.models:
@@ -123,13 +133,17 @@ def _model_for_values(registry: Registry, values: dict) -> Model:
 
 @router.get("/generate")
 async def generate_form(
-    request: Request, from_: int | None = Query(default=None, alias="from", ge=1, le=_MAX_ID)
+    request: Request,
+    from_: int | None = Query(default=None, alias="from", ge=1, le=_MAX_ID),
+    preset: int | None = Query(default=None, ge=1, le=_MAX_ID),
 ) -> HTMLResponse:
     settings = request.app.state.settings
     registry: Registry = request.app.state.registry
     values: dict = {}
-    if from_ is not None:
-        with db.session(settings) as conn:
+    with db.session(settings) as conn:
+        if preset is not None:
+            values = _preset_values(conn, preset) or {}
+        elif from_ is not None:
             values = _remix_values(conn, from_) or {}
     return request.app.state.templates.TemplateResponse(
         request,

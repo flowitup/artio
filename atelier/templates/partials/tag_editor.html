@@ -1,0 +1,11 @@
+{% if raw_tags %}
+  {% set shown_tags = raw_tags %}
+{% else %}
+  {% set shown_tags = image.tags | join(', ') %}
+{% endif %}
+<form id="tag-editor" hx-post="/images/{{ image.id }}/tags" hx-target="#tag-editor" hx-swap="outerHTML">
+  <label for="tags">Tags</label>
+  <input type="text" id="tags" name="tags" value="{{ shown_tags }}" placeholder="comma, separated, tags">
+  <button type="submit">Save tags</button>
+  {% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
+</form>

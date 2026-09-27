@@ -11,7 +11,8 @@ from __future__ import annotations
 import json
 import time
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import Path as PathParam
 from fastapi.responses import HTMLResponse, Response
 
 from atelier import db
@@ -26,7 +27,10 @@ _MISSING_JOB_TEXT = "Job {} no longer exists."
 
 
 def _prompt_excerpt(params_json: str) -> str:
-    prompt = json.loads(params_json).get("prompt", "")
+    # A custom-workflow job's params carry a workflow name instead of a prompt (jobs.create_workflow_batch),
+    # so the queue's "Prompt" column shows that instead of sitting blank.
+    params = json.loads(params_json)
+    prompt = params.get("prompt") or (f"workflow: {params['workflow']}" if "workflow" in params else "")
     if len(prompt) <= PROMPT_EXCERPT_LIMIT:
         return prompt
     return prompt[: PROMPT_EXCERPT_LIMIT - 1] + "…"
@@ -107,6 +111,28 @@ async def cancel_job(
             return _panel_with_flash(request, conn, batch, _MISSING_JOB_TEXT.format(job_id))
         context = _panel_context(conn, batch)
     return request.app.state.templates.TemplateResponse(request, "partials/job_rows.html", context)
+
+
+@router.get("/jobs/{job_id}/graph.json")
+async def job_graph(request: Request, job_id: int = PathParam(ge=1, le=_MAX_ID)) -> Response:
+    """The exact graph a job sent to its backend, byte-for-byte as stored: a generate job's built
+    graph, or a custom-workflow job's graph with its seed override already applied.
+
+    application/json plus an attachment disposition (id-based filename, never user text), same as
+    /workflows/{id}/download: a graph is untrusted text that may itself contain "<script>"-shaped
+    content (a prompt, a class_type), and must never be rendered as HTML by anything that fetches
+    this URL directly. x-content-type-options: nosniff (SecurityHeadersMiddleware, every response)
+    backs this up against a client that would otherwise sniff the body instead of trusting the type."""
+    settings = request.app.state.settings
+    with db.session(settings) as conn:
+        row = conn.execute("SELECT graph_json FROM jobs WHERE id = ?", (job_id,)).fetchone()
+    if row is None:
+        raise HTTPException(status_code=404, detail="job not found")
+    return Response(
+        content=row["graph_json"],
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="job-{job_id}-graph.json"'},
+    )
 
 
 @router.post("/jobs/{job_id}/retry")

@@ -25,9 +25,14 @@ from atelier.config import ConfigError, Settings, load_settings
 from atelier.modal_gateway import ModalGateway, ModalSdkGateway
 from atelier.registry import DEFAULT_REGISTRY, Registry
 from atelier.request_limits import BodySizeLimitMiddleware
-from atelier.routes import generate, health, images, jobs, pages
+from atelier.routes import generate, health, images, jobs, library, pages, workflows
 from atelier.routes import gpu as gpu_routes
 from atelier.worker import Worker
+
+# Uploaded workflow graphs are read whole into memory before validate_api_graph's own 2 MB
+# file-size check runs, so the request body itself is capped a little higher (3 MB) to leave room
+# for the surrounding multipart framing and the name/backend form fields.
+_WORKFLOW_UPLOAD_LIMIT_BYTES = 3 * 1024 * 1024
 
 _JWT_EXECUTOR_WORKERS = 2
 
@@ -106,7 +111,9 @@ def create_app(
     # wrapper last, so the limiter runs before auth even sees the request, and the security headers
     # land on every response -- including the limiter's own 413 and the guard's own 403.
     app.middleware("http")(access_guard)
-    app.add_middleware(BodySizeLimitMiddleware)
+    app.add_middleware(
+        BodySizeLimitMiddleware, per_path={"/workflows": _WORKFLOW_UPLOAD_LIMIT_BYTES}
+    )
     app.add_middleware(SecurityHeadersMiddleware)
 
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
@@ -116,6 +123,8 @@ def create_app(
     app.include_router(jobs.router)
     app.include_router(images.router)
     app.include_router(gpu_routes.router)
+    app.include_router(library.router)
+    app.include_router(workflows.router)
     app.include_router(health.router)
 
     return app
