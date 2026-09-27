@@ -1564,6 +1564,20 @@ def test_warm_route_rejects_a_non_integer_minutes_value(app_client, owner_header
     assert "whole number" in response.text
 
 
+def test_a_refusal_keeps_the_whole_panel_with_its_buttons_and_poll(app_client, owner_headers, fake_gateway):
+    """The GPU forms swap #gpu-panel itself, so a refusal must come back as the panel with the
+    message inside it: a bare message would remove the panel, its buttons and its 10 s poll."""
+    fake_gateway.set_app_state("qwen21-uc", "stopped", None)
+
+    response = app_client.post("/gpu/qwen21-uc/warm", headers=owner_headers, data={"minutes": "5"})
+
+    assert response.status_code == 200
+    assert "is stopped: deploy it before warming it up." in response.text
+    assert 'id="gpu-panel"' in response.text
+    assert 'hx-trigger="every 10s"' in response.text
+    assert "Warm 5 min" in response.text and ">Stop<" in response.text.replace(" ", "")
+
+
 def test_unknown_backend_in_warm_route_returns_200_with_a_message(app_client, owner_headers):
     response = app_client.post("/gpu/not-a-backend/warm", headers=owner_headers, data={"minutes": "5"})
     assert response.status_code == 200

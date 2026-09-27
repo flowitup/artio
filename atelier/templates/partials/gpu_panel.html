@@ -8,6 +8,7 @@
   'scaled to zero': 'badge-neutral',
 } %}
 <div id="gpu-panel" hx-get="/gpu/panel" hx-trigger="every 10s" hx-sync="this:drop" hx-swap="outerHTML">
+  {% if notice is defined and notice %}<p class="error-text" role="alert">{{ notice }}</p>{% endif %}
   {% for card in cards %}
   <article>
     <header>

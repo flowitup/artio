@@ -19,11 +19,12 @@ router = APIRouter()
 _WARM_MINUTES = (5, 15, 30)
 
 
-def _flash(request: Request, message: str) -> HTMLResponse:
-    flash_html = request.app.state.templates.get_template("partials/flash.html").render(
-        {"request": request, "message": message}
-    )
-    return HTMLResponse(flash_html, status_code=200)
+async def _flash(request: Request, message: str) -> HTMLResponse:
+    """A refusal re-renders the whole panel with the message inside it. The GPU forms swap
+    #gpu-panel itself, so a bare message would replace the panel, its buttons and its poll."""
+    context = await _panel_context(request)
+    context["notice"] = message
+    return request.app.state.templates.TemplateResponse(request, "partials/gpu_panel.html", context)
 
 
 def _backend_or_none(registry: Registry, backend_id: str) -> Backend | None:
@@ -86,7 +87,7 @@ async def warm_backend(request: Request, backend_id: str) -> HTMLResponse:
     settings = request.app.state.settings
     backend = _backend_or_none(registry, backend_id)
     if backend is None:
-        return _flash(request, f"Unknown backend {backend_id!r}.")
+        return await _flash(request, f"Unknown backend {backend_id!r}.")
 
     # Parsed by hand, like every other owner HTML form here: a bad value re-renders with a 200 and
     # a message instead of FastAPI's automatic 422.
@@ -94,9 +95,9 @@ async def warm_backend(request: Request, backend_id: str) -> HTMLResponse:
     try:
         minutes = int(form.get("minutes", ""))
     except ValueError:
-        return _flash(request, "Minutes must be a whole number.")
+        return await _flash(request, "Minutes must be a whole number.")
     if minutes not in _WARM_MINUTES:
-        return _flash(request, f"Minutes must be one of {_WARM_MINUTES}.")
+        return await _flash(request, f"Minutes must be one of {_WARM_MINUTES}.")
 
     with db.session(settings) as conn:
         # A forced, not up-to-60s-stale read: warming a backend that just stopped must be refused
@@ -105,13 +106,13 @@ async def warm_backend(request: Request, backend_id: str) -> HTMLResponse:
         if status.error:
             # An unknown status must never be trusted as "deployed": that would silently spawn a
             # ping Modal is very likely to also refuse. Refuse up front with the real reason instead.
-            return _flash(request, f"Status unavailable: {status.error}")
+            return await _flash(request, f"Status unavailable: {status.error}")
         try:
             gpu.start_warm(
                 conn, backend.id, minutes, time.time(), deployed=status.app_state.state == "deployed"
             )
         except gpu.BackendStopped:
-            return _flash(request, f"{backend.label} is stopped: deploy it before warming it up.")
+            return await _flash(request, f"{backend.label} is stopped: deploy it before warming it up.")
     worker.ensure_pinger(backend.id)
 
     return await _render_panel(request)
@@ -123,7 +124,7 @@ async def stop_backend(request: Request, backend_id: str) -> HTMLResponse:
     worker: Worker = request.app.state.worker
     backend = _backend_or_none(registry, backend_id)
     if backend is None:
-        return _flash(request, f"Unknown backend {backend_id!r}.")
+        return await _flash(request, f"Unknown backend {backend_id!r}.")
 
     form = await request.form()
     confirm = form.get("confirm") == "1"
