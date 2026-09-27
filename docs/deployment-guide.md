@@ -506,8 +506,10 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
   cached briefly, so a Modal or CLI outage never turns into one CLI process per page read.
   "Warm 5/15/30 min" keeps the backend warm with a ping roughly every 30s (at most one in flight);
   a click only ever extends an open window (it never shortens one already running longer), and the
-  backend always scales back to zero within about 60s once pings stop, including after
-  `deploy.sh stop`. Stop asks for confirmation when jobs are active (queued or running), then
+  backend always scales back to zero within about 2 minutes once pings stop, including after
+  `deploy.sh stop`. That time is the last ping (up to 30s old), Modal's 60s idle window, and a
+  short delay before Modal removes the container; on 2026-09-27 it measured 97–114s after a window
+  ended and 97–108s after `deploy.sh stop`. Stop asks for confirmation when jobs are active (queued or running), then
   cancels every tracked call at once (the warm-up ping first, retrying any cancel that failed once
   before giving up on it), stops the backend's containers, and waits up to about a minute for its
   runner and backlog counts to reach zero -- pressing Stop again re-runs the same sequence if it

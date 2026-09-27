@@ -1,7 +1,7 @@
 ---
 phase: 6
 title: "GPU status, warm-up & stop"
-status: pending
+status: completed
 priority: P2
 effort: "8h"
 dependencies: [4]
@@ -331,7 +331,35 @@ Delete: none.
 - [x] `tests/test_gpu.py` green. 66 tests, all passing (`uv run pytest -q tests/test_gpu.py`) after the independent review's fix round (see notes below); 42 before it.
 - [x] Independent-review fix round: 2 High and 6 Medium defects fixed in place (panel HTMX self-poll and dropped POST responses; Stop's exception safety; dispatcher stalling and unbounded Stop steps; a warm-click/pinger-expiry race; a stopped app misreading as "unknown"; no negative caching on a failing gateway; swallowed cancel failures; a sticky unhealthy notice), plus the reviewer's 9 Low items that were cheap and safe, and its owner-decision defaults (extend-only warm clicks, job success clears unhealthy, the breaker marker set, trusting the app-state read for a stopped app). The phantom test was replaced with one that genuinely runs `stop_backend` concurrently with the dispatcher. See the fullstack-developer report's "Review fixes" section for the file:line detail and the mutation re-check.
 - [x] Re-review fix round: the 6 remaining Low regressions (an orphaned CLI child on outer cancellation; a duplicate app-state read per convergence pass; the cancel phase running outside the overall deadline; an empty timed-out-step message; unused per-step timeout constant; a full 60s of "unknown" after one transient app-state failure) are all fixed, plus tests added for the reviewer's 13 previously-uncaught mutants (the hanging-step-vs-deadline, stats negative caching, pinger-exits-after-Stop and queued-jobs'-null-call-ids cases first). `tests/test_gpu.py` grew from 67 to 90 tests. See the fullstack-developer report's "Re-review fixes" section.
-- [ ] [OWNER-GATED] Live checks: warm within about 70 s, zero about 60 s after expiry, kill test, stop with jobs, stopped state plus a job after redeploy; timings recorded
+- [x] [OWNER-GATED] Live checks: warm within about 70 s, zero about 60 s after expiry, kill test, stop with jobs, stopped state plus a job after redeploy; timings recorded
+
+### Live verification (2026-09-27, owner-approved, about $0.50 of Modal credits)
+
+The GPU controls were pushed as `cd8497c`; the deploy was green, and the app log showed no errors.
+
+1. **Idle:** `/gpu` showed "scaled to zero · deployed · 0 containers". The warm buttons show estimates of $0.20, $0.53 and $1.01.
+2. **Warm 5 min**, clicked at 10:10:15:
+   - after 34 s: "warming", 1 container and backlog 1 (the first ping, waiting for the boot);
+   - by 54 s at the latest: **warm**. Modal's own listing showed exactly one `qwen21-uc` container.
+3. **Expiry:** the window ended at 10:15:15, and Modal listed 0 containers at 10:17:09, 97–114 s after the end.
+   - The plan's "about 60 s" left out two delays: the last ping can be up to 30 s old, and Modal takes a short while to remove the container after its 60 s idle window. The guide now says about 2 minutes.
+   - The header badge refreshed slowly because the tab was hidden. `document.visibilityState` was `hidden`, and Chrome throttles timers in background tabs; it refreshes normally when visible. This is not an app defect.
+4. **Kill test:**
+   - Warm 15 min, clicked at 10:19:43, was warm by 65 s.
+   - `deploy.sh stop` at 10:20:56: 0 containers 97–108 s later.
+   - `deploy.sh start` at 10:22:54: the pinger resumed the open window, and a container was up by 10:23:05.
+   - Stop with no jobs, at 10:23:21: the panel read "Stopped." within 20 s, and 0 containers held through 10:24:37 (no pinger came back).
+5. **Stop with jobs** (a batch of 2):
+   - The confirmation read "0 queued and 2 running job(s) will be cancelled".
+   - After confirming (08:25:59Z), the POST finished at 08:26:15Z (16 s), and the panel read "Stopped. Cancelled 2 running job(s)."
+   - Both jobs showed cancelled with Retry, and no container appeared in the next 110 s.
+6. **Stopped state and redeploy:**
+   - `modal app stop --yes qwen21-uc` at 10:35:23: the panel read **"stopped"** by 10:36:24, and Warm was refused ("is stopped: deploy it before warming it up.").
+   - Deploy-modal run 36306756609 was green at 10:37:37 with a new app ID, and the panel read "scaled to zero" by 10:38:11.
+   - One job submitted at 10:38:22 **without restarting Atelier** finished (done in 117 s, the first cold container of the new app), so the cached handle followed the new app ID.
+7. **Defect found and fixed during the checks:**
+   - A refusal (stopped app, unknown backend, bad minutes) replaced the whole panel with a bare message, which removed its buttons and its poll.
+   - `_flash` now re-renders the panel with the message inside it. The new test fails without the fix, and the suite now has 403 tests.
 
 ## Success Criteria
 
