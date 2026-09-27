@@ -19,7 +19,8 @@ ASGIApp = Callable[[Scope, Receive, Send], Awaitable[None]]
 
 DEFAULT_LIMIT_BYTES = 64 * 1024
 
-_TOO_LARGE_BODY = b"Request body too large\n"
+_TOO_LARGE_BODY_TEXT = b"Request body too large\n"
+_TOO_LARGE_BODY_JSON = b'{"error": {"code": "request_too_large", "message": "Request body too large"}}'
 
 
 class _BodyTooLarge(Exception):
@@ -50,11 +51,12 @@ class BodySizeLimitMiddleware:
             await self.app(scope, receive, send)
             return
 
-        limit = self._limit_for(scope["path"])
+        path = scope["path"]
+        limit = self._limit_for(path)
         for name, value in scope.get("headers") or ():
             if name == b"content-length":
                 if _declared_length_exceeds(value, limit):
-                    await _send_413(send)
+                    await _send_413(send, path)
                     return
                 break
 
@@ -69,14 +71,31 @@ class BodySizeLimitMiddleware:
                     raise _BodyTooLarge
             return message
 
+        response_started = False
+
+        async def guarded_send(message: Message) -> None:
+            # Once the streamed body passed the limit, the limit decides the answer: a parser that
+            # catches the error itself (FastAPI turns any failure while reading a JSON body into its
+            # own 400) must not override the 413, so its response is replaced by ours.
+            nonlocal response_started
+            if seen > limit:
+                if message["type"] == "http.response.start" and not response_started:
+                    response_started = True
+                    await _send_413(send, path)
+                return
+            if message["type"] == "http.response.start":
+                response_started = True
+            await send(message)
+
         try:
-            await self.app(scope, counting_receive, send)
+            await self.app(scope, counting_receive, guarded_send)
         except* _BodyTooLarge:
             # A downstream BaseHTTPMiddleware (e.g. the auth layer) reads the body through its own
             # nested anyio task groups, which re-wrap an exception raised from inside receive() as an
             # ExceptionGroup -- one or more levels deep -- rather than letting it propagate bare.
             # `except*` matches _BodyTooLarge whether it arrives bare or wrapped in any of those groups.
-            await _send_413(send)
+            if not response_started:
+                await _send_413(send, path)
 
 
 def _declared_length_exceeds(raw_value: bytes, limit: int) -> bool:
@@ -87,12 +106,18 @@ def _declared_length_exceeds(raw_value: bytes, limit: int) -> bool:
     return declared > limit
 
 
-async def _send_413(send: Send) -> None:
+async def _send_413(send: Send, path: str) -> None:
+    """The JSON API's own {"error": {"code","message"}} envelope for a path under /api/v1 (an owner
+    decision about that API's own error shape); every HTML route keeps the plain-text body it
+    always had."""
+    is_api = path.startswith("/api/v1")
+    body = _TOO_LARGE_BODY_JSON if is_api else _TOO_LARGE_BODY_TEXT
+    content_type = b"application/json" if is_api else b"text/plain; charset=utf-8"
     await send(
         {
             "type": "http.response.start",
             "status": 413,
-            "headers": [(b"content-type", b"text/plain; charset=utf-8")],
+            "headers": [(b"content-type", content_type)],
         }
     )
-    await send({"type": "http.response.body", "body": _TOO_LARGE_BODY})
+    await send({"type": "http.response.body", "body": body})

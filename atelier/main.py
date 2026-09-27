@@ -25,7 +25,7 @@ from atelier.config import ConfigError, Settings, load_settings
 from atelier.modal_gateway import ModalGateway, ModalSdkGateway
 from atelier.registry import DEFAULT_REGISTRY, Registry
 from atelier.request_limits import BodySizeLimitMiddleware
-from atelier.routes import generate, health, images, jobs, library, pages, workflows
+from atelier.routes import api_v1, generate, health, images, jobs, library, pages, workflows
 from atelier.routes import gpu as gpu_routes
 from atelier.worker import Worker
 
@@ -126,5 +126,6 @@ def create_app(
     app.include_router(library.router)
     app.include_router(workflows.router)
     app.include_router(health.router)
+    api_v1.register(app)
 
     return app

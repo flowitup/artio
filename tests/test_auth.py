@@ -185,10 +185,14 @@ def _fill(path: str, route_ids: dict[str, int]) -> str:
 
 
 def test_service_identity_is_refused_outside_the_api_allowlist(app_client, service_headers, route_ids):
+    """Every HTML GET route stays owner-only for the service identity. /api/v1 routes are deliberately
+    excluded from this crawl: those nine endpoints are exactly what SERVICE_ROUTES allows the service
+    identity to call (proven instead by test_api_v1.py's own allowlist tests), so a 403 here would be
+    the bug, not the fix."""
     visited = 0
     for raw_path in _get_paths(app_client.app):
         path = _fill(raw_path, route_ids)
-        if path == "/healthz":
+        if path == "/healthz" or path.startswith("/api/v1"):
             continue
         response = app_client.get(path, headers=service_headers)
         assert response.status_code == 403, f"service identity was allowed on GET {path}"

@@ -1,0 +1,8 @@
+{
+  "name": "atelier-local",
+  "owner": { "name": "Manh Trung BUI" },
+  "description": "One-entry local marketplace for installing the Atelier plugin in Claude Code from this checkout.",
+  "plugins": [
+    { "name": "atelier", "source": "./plugin", "description": "Drive Atelier from Claude" }
+  ]
+}

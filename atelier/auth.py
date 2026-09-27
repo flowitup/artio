@@ -18,7 +18,7 @@ from typing import Literal
 
 import jwt
 from fastapi import Request
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from jwt import PyJWKClient
 
 from atelier.config import Settings
@@ -52,10 +52,22 @@ class AccessDenied(Exception):
         self.reason = reason
 
 
-# The (method, path) pairs the plugin's service identity may call. Empty for now: a future JSON API
-# will fill it with the plugin's allowed endpoints. Every other route -- HTML pages, static files,
-# delete and upload routes -- stays owner-only no matter what is added here.
-SERVICE_ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = ()
+# The (method, path) pairs the plugin's service identity may call: exactly criterion 10's nine
+# /api/v1 endpoints (routes/api_v1.py), and nothing else -- no warm, no stop, no HTML page, no
+# upload or delete. `[0-9]+` matches an id path parameter's rendered value; auth never needs to
+# know the parameter's name, only its shape.
+_ID = r"[0-9]+"
+SERVICE_ROUTES: tuple[tuple[str, re.Pattern[str]], ...] = (
+    ("GET", re.compile(r"/api/v1/models")),
+    ("POST", re.compile(r"/api/v1/generate")),
+    ("GET", re.compile(r"/api/v1/jobs")),
+    ("GET", re.compile(r"/api/v1/images")),
+    ("GET", re.compile(rf"/api/v1/images/{_ID}")),
+    ("GET", re.compile(rf"/api/v1/images/{_ID}/file")),
+    ("GET", re.compile(r"/api/v1/workflows")),
+    ("POST", re.compile(rf"/api/v1/workflows/{_ID}/run")),
+    ("GET", re.compile(r"/api/v1/gpu")),
+)
 
 
 def service_may_call(method: str, path: str) -> bool:
@@ -145,6 +157,15 @@ def same_origin(request: Request, public_origin: str) -> bool:
     return referer is not None and referer.startswith(public_origin + "/")
 
 
+def _forbidden(path: str) -> Response:
+    """A uniform {"error": {"code","message"}} envelope for the JSON API; every HTML route (and
+    static file) keeps the plain-text 403 it always has, unchanged -- this is an owner decision
+    about the API's own error shape, not a change to how the browser-facing app answers."""
+    if path.startswith("/api/v1"):
+        return JSONResponse({"error": {"code": "forbidden", "message": "Forbidden"}}, status_code=403)
+    return PlainTextResponse("Forbidden", status_code=403)
+
+
 async def access_guard(request: Request, call_next):
     """The one auth middleware: every route except /healthz needs a verified identity, HTML routes and
     static files are owner-only, and an owner state change needs a same-origin request.
@@ -162,11 +183,11 @@ async def access_guard(request: Request, call_next):
         identity = await verifier.identify(request)
     except AccessDenied as exc:
         log.warning("access denied path=%s reason=%s", path, exc.reason)
-        return PlainTextResponse("Forbidden", status_code=403)
+        return _forbidden(path)
 
     if identity.kind == "service" and not service_may_call(request.method, path):
         log.warning("service identity refused path=%s", path)
-        return PlainTextResponse("Forbidden", status_code=403)
+        return _forbidden(path)
 
     if (
         identity.kind == "owner"
@@ -174,7 +195,7 @@ async def access_guard(request: Request, call_next):
         and not same_origin(request, request.app.state.settings.public_origin)
     ):
         log.warning("owner request refused: cross-origin path=%s", path)
-        return PlainTextResponse("Forbidden", status_code=403)
+        return _forbidden(path)
 
     request.state.identity = identity
     return await call_next(request)

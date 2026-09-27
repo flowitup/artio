@@ -564,3 +564,59 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
   whatever machine runs it); updating the plugin's configuration with the new Client ID and
   Secret; running `/opt/atelier/deploy.sh start` to restart the container with the new `.env`;
   and only then revoking the old token.
+- **If the secret ever leaks** (committed by mistake, pasted somewhere it shouldn't have been, a
+  compromised machine that had it configured): revoke it **immediately** in Zero Trust -> Access ->
+  Service credentials -> `atelier-plugin` -> Rotate secret. There is no grace period for a suspected
+  leak -- rotate first, ask questions after. Then create a new token bound to the same Service Auth
+  policy, update `.env` and the plugin's own configuration as above, and confirm with a plugin call
+  that the old secret no longer works.
+
+## Installing the Claude plugin
+
+The plugin (`plugin/`) lets Claude drive Atelier through the `atelier-plugin` service token: list
+models, generate, check job and GPU status, and search, fetch and run stored workflows. It has no
+tool to warm up or stop a backend, upload, or delete anything -- the service identity's allowlist
+(`atelier/auth.py`'s `SERVICE_ROUTES`) simply doesn't include those routes. See `plugin/README.md`
+for the full tool list and privacy notes; this section covers install by both routes.
+
+**Primary route -- Claude desktop app:**
+
+1. Build the zip once (from a checkout of this repository): `bash plugin/build.sh` produces
+   `plugin/atelier.plugin`. It is not committed (`.gitignore` excludes `*.plugin`); rebuild it after
+   any change under `plugin/`.
+2. Open `atelier.plugin` with the Claude desktop app, or install it from Settings -> Capabilities.
+3. When the configuration dialog appears, enter `cf_client_id` (not secret, also visible on the
+   token's page in Zero Trust) and `cf_client_secret` (from the password manager -- Cloudflare shows
+   it only once, at creation). Leave `base_url` and `save_dir` at their defaults unless told otherwise.
+4. **If the desktop app's install route shows no configuration prompt** (no dialog, and
+   `${user_config.*}` stays unexpanded in the running plugin's environment): fall back to environment
+   passthrough, the same pattern Folio's plugin uses. Edit `plugin/.mcp.json` so each `env` value
+   reads `"${ATELIER_CF_CLIENT_ID}"` / `"${ATELIER_CF_CLIENT_SECRET}"` etc. instead of
+   `"${user_config.*}"`, and export those variables in the shell that starts Claude. A literal secret
+   value must never land in any file either way.
+
+**Secondary route -- Claude Code, from a checkout of this repository:**
+
+```bash
+claude plugin marketplace add /path/to/this/repo    # registers the one-entry local marketplace
+claude plugin install atelier@atelier-local         # or /plugin install atelier@atelier-local in a session
+/plugin configure atelier                            # enter cf_client_id and cf_client_secret
+claude plugin validate /path/to/this/repo/plugin     # sanity check after any manifest change
+```
+
+A shell `claude plugin install` shows no configuration dialog; always follow it with
+`/plugin configure atelier` in a session to enter the secrets.
+
+Either route runs the server from its committed lockfile (`uv run --locked --script`, verified
+against uv 0.9.26): a transitive dependency can never silently change under a process that holds the
+service-token secret. If an older `uv` on the machine rejects `--locked`, upgrade it, or fall back to
+`--frozen` in `plugin/.mcp.json`, which still installs only the locked versions without the staleness
+check.
+
+## Final review
+
+The final acceptance run (criteria 1-14) is recorded in
+`plans/260925-1331-atelier-image-studio/phase-08-api-plugin-and-acceptance.md`'s Acceptance record,
+filled in during the owner-gated live pass. This deployment guide is the durable record of the setup
+and the routine operator procedures; the acceptance record is a one-time, dated proof that they all
+worked together in production, not a second copy of this guide.
