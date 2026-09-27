@@ -52,3 +52,25 @@
   background: var(--pico-del-color);
   color: #fff;
 }
+
+/* A calm, expected state (stopped, scaled to zero): visible as a pill, but not alarming. */
+.badge-neutral {
+  background: var(--pico-secondary-background);
+  color: var(--pico-secondary-inverse);
+}
+
+/* GPU panel: one bordered card per backend, its warm/stop buttons on their own lines. */
+#gpu-panel article {
+  margin-bottom: 1rem;
+}
+
+#gpu-panel form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+#gpu-panel form button {
+  width: auto;
+}

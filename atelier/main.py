@@ -7,6 +7,7 @@ in this process's memory, so a second worker process would run them twice.
 from __future__ import annotations
 
 import os
+import time
 from collections.abc import AsyncIterator, Callable
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import asynccontextmanager
@@ -18,13 +19,14 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from atelier import db
+from atelier import db, gpu
 from atelier.auth import AccessVerifier, SecurityHeadersMiddleware, access_guard
 from atelier.config import ConfigError, Settings, load_settings
 from atelier.modal_gateway import ModalGateway, ModalSdkGateway
 from atelier.registry import DEFAULT_REGISTRY, Registry
 from atelier.request_limits import BodySizeLimitMiddleware
 from atelier.routes import generate, health, images, jobs, pages
+from atelier.routes import gpu as gpu_routes
 from atelier.worker import Worker
 
 _JWT_EXECUTOR_WORKERS = 2
@@ -69,6 +71,18 @@ def create_app(
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         db.migrate(settings)
         if start_worker:
+            # A window still open from before a restart (crash, or a plain redeploy) resumes its
+            # pinger: warm-up must never silently stop just because Atelier itself restarted. One
+            # that had already expired while Atelier was down is cleared right away instead of
+            # sitting there as a stale "warm until" nobody's pinger will ever reach and clear.
+            now = time.time()
+            with db.session(settings) as conn:
+                for backend_id in registry.backends:
+                    until, _ = gpu.warm_state(conn, backend_id)
+                    if until is not None and until > now:
+                        worker.ensure_pinger(backend_id)
+                    elif until is not None:
+                        gpu.clear_expired_warm(conn, backend_id, until)
             await worker.run()
         try:
             yield
@@ -101,6 +115,7 @@ def create_app(
     app.include_router(generate.router)
     app.include_router(jobs.router)
     app.include_router(images.router)
+    app.include_router(gpu_routes.router)
     app.include_router(health.router)
 
     return app

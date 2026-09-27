@@ -308,6 +308,36 @@ def list_recent(conn: sqlite3.Connection, *, batch_id: int | None = None, limit:
     ).fetchall()
 
 
+def active_counts(conn: sqlite3.Connection, backend_id: str) -> tuple[int, int]:
+    """Counts of a backend's active jobs, for Stop's confirmation prompt: (queued, submitted)."""
+    row = conn.execute(
+        "SELECT "
+        "SUM(CASE WHEN status = 'queued' THEN 1 ELSE 0 END) AS queued, "
+        "SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) AS running "
+        "FROM jobs WHERE backend_id = ? AND status IN ('queued', 'submitted')",
+        (backend_id,),
+    ).fetchone()
+    return row["queued"] or 0, row["running"] or 0
+
+
+def cancel_all_for_backend(conn: sqlite3.Connection, backend_id: str) -> list[str]:
+    """Marks every queued and submitted job on a backend cancelled and returns the call IDs of the
+    submitted ones -- Stop sends Modal cancels for those, plus its own ping's call ID, all at once.
+    Queued jobs (no call_id yet) are cancelled here too: otherwise the dispatcher would spawn them
+    moments later and cold-start the very backend Stop just stopped.
+
+    A single UPDATE ... RETURNING, so this is atomic on its own in any caller context -- unlike
+    cancel_job's own BEGIN IMMEDIATE (needed there because cancel_job runs a separate SELECT first),
+    this needs no explicit transaction, so it never conflicts with an implicit one an earlier
+    statement in the caller's own session() block (e.g. gpu.clear_warm()) may already have opened."""
+    rows = conn.execute(
+        "UPDATE jobs SET status = 'cancelled' WHERE backend_id = ? AND status IN ('queued', 'submitted') "
+        "RETURNING call_id",
+        (backend_id,),
+    ).fetchall()
+    return [row["call_id"] for row in rows if row["call_id"] is not None]
+
+
 def has_active(conn: sqlite3.Connection, *, batch_id: int | None = None) -> bool:
     """True while some job the queue view would show is still queued or submitted. The /queue/rows
     partial polls while this is true and stops (286) once it turns false."""

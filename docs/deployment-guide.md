@@ -500,6 +500,37 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
 - **Disk usage:** the app's own header shows usage against the volume's cap, and refuses new
   generation jobs at or over the cap, or when free space drops under the floor; `df -h
   /mnt/atelier-data` gives the underlying number directly.
+- **GPU status, warm-up and stop:** the header badge and `/gpu` show each backend's state (warm,
+  warming, running, scaled to zero, stopped or unhealthy), computed on read from short caches, so
+  nothing polls Modal while no tab is open. A failed status read shows the error text and is itself
+  cached briefly, so a Modal or CLI outage never turns into one CLI process per page read.
+  "Warm 5/15/30 min" keeps the backend warm with a ping roughly every 30s (at most one in flight);
+  a click only ever extends an open window (it never shortens one already running longer), and the
+  backend always scales back to zero within about 60s once pings stop, including after
+  `deploy.sh stop`. Stop asks for confirmation when jobs are active (queued or running), then
+  cancels every tracked call at once (the warm-up ping first, retrying any cancel that failed once
+  before giving up on it), stops the backend's containers, and waits up to about a minute for its
+  runner and backlog counts to reach zero -- pressing Stop again re-runs the same sequence if it
+  doesn't converge, or if a Modal step itself failed, in time. Its outcome (stopped, still running,
+  or failed) stays visible on the panel for a couple of minutes, not just in the one response that
+  triggered it.
+- **Backend unhealthy:** shown when a backend's ComfyUI has stopped answering while its container
+  was otherwise running -- either a failed warm-up ping's health probe, or three of the backend's
+  jobs failing on their very first poll with a connection-refused-style error (both feed the same
+  circuit breaker; a successful ping or job render clears it again). A container that never
+  finishes booting is a different failure (recycling it wouldn't help) and does not feed this
+  breaker. By the time the notice appears, Atelier has already reacted: it cleared any open warm
+  window, cancelled every queued and running job on that backend, and run the Stop sequence to
+  terminate its containers, so the next job or warm-up starts a fresh one. To recover:
+  - Retry the cancelled jobs from the queue view (each has a Retry button); they re-queue normally
+    and dispatch to the recycled backend.
+  - If a backend keeps recycling itself, check `modal app logs qwen21-uc` for what ComfyUI was doing
+    when it stopped answering (an out-of-memory crash, a bad model file, a Modal-side failure).
+    Redeploy once the underlying issue is understood (`gh workflow run deploy-modal.yml --ref main`),
+    which also resets the autoscaler.
+  - An occasional false trip (a one-off timeout, or a real but transient ComfyUI error) is expected
+    to be rare; if it recurs without a real underlying cause, raise the breaker's 3-failure
+    threshold in `worker.py` after telling the owner.
 - **The domain:** `flowitup.com` is registered at Cloudflare with auto-renew **off**, by the
   owner's choice on 2026-09-27. It expires on **2027-04-07** and must be renewed by hand before
   then (about $10.45 a year). Every site behind the tunnel (Folio, cdn, LearnFlow and Atelier)

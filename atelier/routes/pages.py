@@ -6,7 +6,7 @@ from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi import Path as PathParam
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from atelier import db, library, storage
+from atelier import db, gpu, library, storage
 from atelier.registry import Registry
 
 router = APIRouter()
@@ -55,10 +55,12 @@ async def batch_detail(request: Request, batch_id: int = PathParam(ge=1, le=_MAX
 async def header_status(request: Request) -> HTMLResponse:
     settings = request.app.state.settings
     worker = request.app.state.worker
+    registry: Registry = request.app.state.registry
     with db.session(settings) as conn:
         disk = storage.disk_status(conn, settings)
+        gpu_summaries = [await gpu.summarize(worker.status, backend, conn) for backend in registry.backends.values()]
     return request.app.state.templates.TemplateResponse(
         request,
         "partials/header_status.html",
-        {"disk": disk, "paused": worker.paused, "alerts": worker.alerts},
+        {"disk": disk, "paused": worker.paused, "alerts": worker.alerts, "gpu_summaries": gpu_summaries},
     )

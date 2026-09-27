@@ -10,3 +10,10 @@
 {% for backend_id, message in alerts.items() %}
 <span class="badge badge-danger">{{ backend_id }}: {{ message }}</span>
 {% endfor %}
+{% for g in gpu_summaries %}
+<a href="/gpu" class="badge {{ 'badge-danger' if g.state == 'unhealthy' else ('badge-ok' if g.state in ('warm', 'running') else ('badge-neutral' if g.state in ('stopped', 'scaled to zero') else 'badge-warning')) }}">
+  {{ g.label }}: {{ g.state }}
+  {%- if g.window_open %} &middot; warm until {{ g.warm_until | localtime('%H:%M') }}{% endif %}
+  {%- if g.unhealthy %} &mdash; {{ g.unhealthy }}{% endif %}
+</a>
+{% endfor %}

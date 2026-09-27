@@ -1,0 +1,61 @@
+{% set gpu_badge_class = {
+  'warm': 'badge-ok',
+  'running': 'badge-ok',
+  'warming': 'badge-warning',
+  'unhealthy': 'badge-danger',
+  'unknown': 'badge-warning',
+  'stopped': 'badge-neutral',
+  'scaled to zero': 'badge-neutral',
+} %}
+<div id="gpu-panel" hx-get="/gpu/panel" hx-trigger="every 10s" hx-sync="this:drop" hx-swap="outerHTML">
+  {% for card in cards %}
+  <article>
+    <header>
+      <strong>{{ card.backend.label }}</strong>
+      <span class="badge {{ gpu_badge_class[card.state] }}">{{ card.state }}</span>
+      {%- if card.status.window_open %} &middot; warm until {{ card.status.warm_until | localtime('%H:%M') }}{% endif %}
+    </header>
+    <p>
+      {{ 'deployed' if card.status.app_state.state == 'deployed' else 'stopped' }}
+      &middot; {{ card.status.containers }} container(s)
+      &middot; {{ card.status.running_inputs }} running input(s)
+      &middot; backlog {{ card.status.backlog }}
+      {%- if card.running_cost is not none %} &middot; running cost so far: ${{ '%.2f' | format(card.running_cost) }}{% endif %}
+    </p>
+    {% if card.status.error %}
+    <p class="error-text" role="alert">Status unavailable: {{ card.status.error }}</p>
+    {% endif %}
+    {% if card.status.unhealthy %}
+    <p class="error-text" role="alert">Unhealthy: {{ card.status.unhealthy }}</p>
+    {% endif %}
+    {% if card.stop_outcome %}
+    <p {% if card.stop_outcome.kind in ('not_converged', 'failed') %}class="error-text" role="alert"{% endif %}>
+      {%- if card.stop_outcome.kind == 'stopped' -%}
+        Stopped.{% if card.stop_outcome.cancelled %} Cancelled {{ card.stop_outcome.cancelled }} running job(s).{% endif %}
+        {%- if card.stop_outcome.cancel_failures %} {{ card.stop_outcome.cancel_failures }} Modal cancel(s) failed even after a retry; check the logs.{% endif -%}
+      {%- elif card.stop_outcome.kind == 'not_converged' -%}
+        Still {{ card.stop_outcome.stats.num_total_runners if card.stop_outcome.stats else '?' }} runner(s) after 60s.
+        {%- if card.stop_outcome.cancel_failures %} {{ card.stop_outcome.cancel_failures }} Modal cancel(s) failed.{% endif %}
+        {%- if card.stop_outcome.error %} Last error: {{ card.stop_outcome.error }}.{% endif %}
+        See "Backend unhealthy" in the deployment guide, or press Stop again.
+      {%- elif card.stop_outcome.kind == 'failed' -%}
+        Stop failed: {{ card.stop_outcome.error }}. Press Stop again.
+      {%- endif -%}
+    </p>
+    {% endif %}
+
+    <form hx-post="/gpu/{{ card.backend.id }}/warm" hx-target="#gpu-panel" hx-swap="outerHTML"
+          hx-sync="closest #gpu-panel:replace">
+      {% for m in card.warm_minutes %}
+      <button type="submit" name="minutes" value="{{ m }}">
+        Warm {{ m }} min (~${{ '%.2f' | format(card.window_costs[m]) }})
+      </button>
+      {% endfor %}
+    </form>
+    <form hx-post="/gpu/{{ card.backend.id }}/stop" hx-target="#gpu-panel" hx-swap="outerHTML"
+          hx-sync="closest #gpu-panel:replace">
+      <button type="submit">Stop</button>
+    </form>
+  </article>
+  {% endfor %}
+</div>
