@@ -348,29 +348,29 @@ async def _poll_job(self, job) -> None:
 <!-- Updated: Red Team 2026-09-25 - F4 error handling -->
 
 Create:
-- `/Users/sweet-home/Works/atelier/atelier/config.py`
-- `/Users/sweet-home/Works/atelier/atelier/db.py` (with `DB_FILENAME`)
-- `/Users/sweet-home/Works/atelier/atelier/migrations/0001_init.sql`
-- `/Users/sweet-home/Works/atelier/atelier/registry.py`
-- `/Users/sweet-home/Works/atelier/atelier/workflows/__init__.py`
-- `/Users/sweet-home/Works/atelier/atelier/workflows/qwen_image_21.py`
-- `/Users/sweet-home/Works/atelier/atelier/modal_gateway.py`
-- `/Users/sweet-home/Works/atelier/atelier/jobs.py`
-- `/Users/sweet-home/Works/atelier/atelier/worker.py`
-- `/Users/sweet-home/Works/atelier/atelier/storage.py`
-- `/Users/sweet-home/Works/atelier/tests/fakes.py` (`FakeModalGateway`)
-- `/Users/sweet-home/Works/atelier/tests/test_config.py`
-- `/Users/sweet-home/Works/atelier/tests/test_db.py`
-- `/Users/sweet-home/Works/atelier/tests/test_registry.py`
-- `/Users/sweet-home/Works/atelier/tests/test_graph_parity.py`
-- `/Users/sweet-home/Works/atelier/tests/test_modal_gateway.py` (real SDK poll path plus classification with real exception instances)
-- `/Users/sweet-home/Works/atelier/tests/test_jobs.py`
-- `/Users/sweet-home/Works/atelier/tests/test_worker.py`
-- `/Users/sweet-home/Works/atelier/tests/test_storage.py`
-- `/Users/sweet-home/Works/atelier/tests/test_live_generation.py` (marker `live`)
+- `/Users/sweet-home/Works/artio/atelier/config.py`
+- `/Users/sweet-home/Works/artio/atelier/db.py` (with `DB_FILENAME`)
+- `/Users/sweet-home/Works/artio/atelier/migrations/0001_init.sql`
+- `/Users/sweet-home/Works/artio/atelier/registry.py`
+- `/Users/sweet-home/Works/artio/atelier/workflows/__init__.py`
+- `/Users/sweet-home/Works/artio/atelier/workflows/qwen_image_21.py`
+- `/Users/sweet-home/Works/artio/atelier/modal_gateway.py`
+- `/Users/sweet-home/Works/artio/atelier/jobs.py`
+- `/Users/sweet-home/Works/artio/atelier/worker.py`
+- `/Users/sweet-home/Works/artio/atelier/storage.py`
+- `/Users/sweet-home/Works/artio/tests/fakes.py` (`FakeModalGateway`)
+- `/Users/sweet-home/Works/artio/tests/test_config.py`
+- `/Users/sweet-home/Works/artio/tests/test_db.py`
+- `/Users/sweet-home/Works/artio/tests/test_registry.py`
+- `/Users/sweet-home/Works/artio/tests/test_graph_parity.py`
+- `/Users/sweet-home/Works/artio/tests/test_modal_gateway.py` (real SDK poll path plus classification with real exception instances)
+- `/Users/sweet-home/Works/artio/tests/test_jobs.py`
+- `/Users/sweet-home/Works/artio/tests/test_worker.py`
+- `/Users/sweet-home/Works/artio/tests/test_storage.py`
+- `/Users/sweet-home/Works/artio/tests/test_live_generation.py` (marker `live`)
 
 Modify:
-- `/Users/sweet-home/Works/atelier/tests/conftest.py`: add fixtures `settings` (temporary data dir, `ATELIER_ENV=test`), `conn`, `registry`, `fake_gateway`, `png_bytes` (a real PNG made with Pillow) and `rng` (seeded `random.Random`).
+- `/Users/sweet-home/Works/artio/tests/conftest.py`: add fixtures `settings` (temporary data dir, `ATELIER_ENV=test`), `conn`, `registry`, `fake_gateway`, `png_bytes` (a real PNG made with Pillow) and `rng` (seeded `random.Random`).
 
 Delete: none.
 
@@ -472,7 +472,7 @@ Delete: none.
 ## Verification
 
 ```bash
-cd /Users/sweet-home/Works/atelier
+cd /Users/sweet-home/Works/artio
 uv run ruff check
 uv run pytest -q
 uv run pytest -q tests/test_modal_gateway.py tests/test_graph_parity.py tests/test_worker.py -v

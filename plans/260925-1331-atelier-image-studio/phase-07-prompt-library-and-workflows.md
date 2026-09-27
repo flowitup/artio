@@ -144,25 +144,25 @@ The "Workflow → Export (API)" menu label in ComfyUI's current frontend is [UNV
 <!-- Updated: Red Team 2026-09-25 - F10 service identity and scope -->
 
 Create:
-- `/Users/sweet-home/Works/atelier/atelier/custom_workflows.py`
-- `/Users/sweet-home/Works/atelier/atelier/routes/library.py`
-- `/Users/sweet-home/Works/atelier/atelier/routes/workflows.py`
-- `/Users/sweet-home/Works/atelier/atelier/templates/library.html`
-- `/Users/sweet-home/Works/atelier/atelier/templates/workflows.html`
-- `/Users/sweet-home/Works/atelier/atelier/templates/partials/star_button.html`
-- `/Users/sweet-home/Works/atelier/atelier/templates/partials/tag_editor.html`
-- `/Users/sweet-home/Works/atelier/tests/test_library.py`
-- `/Users/sweet-home/Works/atelier/tests/test_custom_workflows.py`
+- `/Users/sweet-home/Works/artio/atelier/custom_workflows.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/library.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/workflows.py`
+- `/Users/sweet-home/Works/artio/atelier/templates/library.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/workflows.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/star_button.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/tag_editor.html`
+- `/Users/sweet-home/Works/artio/tests/test_library.py`
+- `/Users/sweet-home/Works/artio/tests/test_custom_workflows.py`
 
 Modify:
-- `/Users/sweet-home/Works/atelier/atelier/library.py`: presets CRUD, `toggle_star`, `set_tags`, `search` and the combined gallery filters.
-- `/Users/sweet-home/Works/atelier/atelier/jobs.py`: `create_workflow_batch(conn, registry, workflow, seed_mode, seed, count, rng)`.
-- `/Users/sweet-home/Works/atelier/atelier/routes/generate.py`: `?preset=` prefill.
-- `/Users/sweet-home/Works/atelier/atelier/routes/pages.py`: the gallery's `q`, `tag` and `starred` filters and the "Custom workflows" model option.
-- `/Users/sweet-home/Works/atelier/atelier/routes/jobs.py`: `GET /jobs/{id}/graph.json`.
-- `/Users/sweet-home/Works/atelier/atelier/main.py`: include the two routers, and register the 3 MB body limit for `POST /workflows` in the body-size middleware.
-- `/Users/sweet-home/Works/atelier/atelier/templates/generate.html`, `gallery.html`, `image.html` and `base.html` (nav links to Library and Workflows).
-- `/Users/sweet-home/Works/atelier/tests/conftest.py`: add `preset_id` and `workflow_id` to the `route_ids` fixture, so the route-enumerating crawl can visit the new GET routes.
+- `/Users/sweet-home/Works/artio/atelier/library.py`: presets CRUD, `toggle_star`, `set_tags`, `search` and the combined gallery filters.
+- `/Users/sweet-home/Works/artio/atelier/jobs.py`: `create_workflow_batch(conn, registry, workflow, seed_mode, seed, count, rng)`.
+- `/Users/sweet-home/Works/artio/atelier/routes/generate.py`: `?preset=` prefill.
+- `/Users/sweet-home/Works/artio/atelier/routes/pages.py`: the gallery's `q`, `tag` and `starred` filters and the "Custom workflows" model option.
+- `/Users/sweet-home/Works/artio/atelier/routes/jobs.py`: `GET /jobs/{id}/graph.json`.
+- `/Users/sweet-home/Works/artio/atelier/main.py`: include the two routers, and register the 3 MB body limit for `POST /workflows` in the body-size middleware.
+- `/Users/sweet-home/Works/artio/atelier/templates/generate.html`, `gallery.html`, `image.html` and `base.html` (nav links to Library and Workflows).
+- `/Users/sweet-home/Works/artio/tests/conftest.py`: add `preset_id` and `workflow_id` to the `route_ids` fixture, so the route-enumerating crawl can visit the new GET routes.
 
 Delete: none.
 
@@ -249,7 +249,7 @@ The feature deployed as `2b52414`: the deploy was green, `/healthz` was ok, and 
 ## Verification
 
 ```bash
-cd /Users/sweet-home/Works/atelier
+cd /Users/sweet-home/Works/artio
 uv run ruff check
 uv run pytest -q tests/test_library.py tests/test_custom_workflows.py tests/test_pages_hide_secrets.py -v
 uv run pytest -q

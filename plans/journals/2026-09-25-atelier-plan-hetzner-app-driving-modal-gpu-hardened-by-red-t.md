@@ -42,7 +42,7 @@ Owner decisions:
 These are recorded as amendments in the contract `plans/reports/brainstorm-260925-1507-atelier-image-studio-hetzner.md`.
 
 ## Next steps
-1. Run `/ak:cook /Users/sweet-home/Works/atelier/plans/260925-1331-atelier-image-studio/plan.md`, starting with phase 1 (repo bootstrap and Modal backend changes).
+1. Run `/ak:cook /Users/sweet-home/Works/artio/plans/260925-1331-atelier-image-studio/plan.md`, starting with phase 1 (repo bootstrap and Modal backend changes).
 2. Every step touching folio-prod-1, Cloudflare, R2, GitHub or Modal is owner-gated.
 3. Ten claims remain unverified until run on real systems, each with a fallback in its phase: systemd-run flags, cloudflared ingress syntax, the rrsync path form, the Tailscale SSH check, GHCR package access for `GITHUB_TOKEN`, and Modal budget alerts.
 4. Unrelated follow-ups: the SSH alias `dev-deploy` presents a changed host key, and Folio's repo copy of the cloudflared config is missing the `learn.flowitup.com` rule.

@@ -399,17 +399,17 @@ The ingress rule, saved as `deploy/cloudflared-ingress-rule.yml` and inserted im
 <!-- Updated: Red Team 2026-09-25 - F9 supply chain -->
 
 Create:
-- `/Users/sweet-home/Works/atelier/Dockerfile`
-- `/Users/sweet-home/Works/atelier/.dockerignore`
-- `/Users/sweet-home/Works/atelier/compose.yaml`
-- `/Users/sweet-home/Works/atelier/deploy/deploy.sh`
-- `/Users/sweet-home/Works/atelier/deploy/cloudflared-ingress-rule.yml`
-- `/Users/sweet-home/Works/atelier/deploy/systemd/atelier-egress.service`
-- `/Users/sweet-home/Works/atelier/.github/workflows/ci.yml`
-- `/Users/sweet-home/Works/atelier/.github/workflows/deploy.yml`
-- `/Users/sweet-home/Works/atelier/.github/workflows/deploy-modal.yml`
-- `/Users/sweet-home/Works/atelier/docs/deployment-guide.md`
-- `/Users/sweet-home/Works/atelier/tests/test_deploy_script.py`: hermetic. It writes stub `docker`, `curl`, `systemd-run`, `flock` and `logger` executables into a temporary `bin/`, puts them first on `PATH`, points `ATELIER_DEPLOY_DIR` at a temporary directory, and runs `bash deploy/deploy.sh`.
+- `/Users/sweet-home/Works/artio/Dockerfile`
+- `/Users/sweet-home/Works/artio/.dockerignore`
+- `/Users/sweet-home/Works/artio/compose.yaml`
+- `/Users/sweet-home/Works/artio/deploy/deploy.sh`
+- `/Users/sweet-home/Works/artio/deploy/cloudflared-ingress-rule.yml`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-egress.service`
+- `/Users/sweet-home/Works/artio/.github/workflows/ci.yml`
+- `/Users/sweet-home/Works/artio/.github/workflows/deploy.yml`
+- `/Users/sweet-home/Works/artio/.github/workflows/deploy-modal.yml`
+- `/Users/sweet-home/Works/artio/docs/deployment-guide.md`
+- `/Users/sweet-home/Works/artio/tests/test_deploy_script.py`: hermetic. It writes stub `docker`, `curl`, `systemd-run`, `flock` and `logger` executables into a temporary `bin/`, puts them first on `PATH`, points `ATELIER_DEPLOY_DIR` at a temporary directory, and runs `bash deploy/deploy.sh`.
 
 Modify (LearnFlow repository, D1, **[OWNER-GATED]** push):
 - `/Users/sweet-home/Works/learnflow/.github/workflows/deploy.yml`:
@@ -544,7 +544,7 @@ Delete: none.
     - Record the host key with `ssh-keyscan -t ed25519 <host>`, and check its fingerprint against `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` run on the server.
     - Prove the boundary: `ssh -i <key> -o IdentitiesOnly=yes root@<host> id` must print `rejected: unexpected command` and exit 2.
 17. **[OWNER-GATED] GitHub.**
-    - Run `gh repo create flowitup/atelier --private --source /Users/sweet-home/Works/atelier --remote origin`.
+    - Run `gh repo create flowitup/atelier --private --source /Users/sweet-home/Works/artio --remote origin`.
     - In the repo's Settings → Environments, create `production` with deployment branches limited to `main`.
     - Set the environment secrets `HETZNER_HOST`, `HETZNER_KNOWN_HOSTS`, `ATELIER_DEPLOY_SSH_KEY` (read from the file), `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` (the `atelier-ci` token). Use `gh secret set <NAME> --env production --repo flowitup/atelier` with the value typed or piped from a file, never passed as a command-line argument. Create no repository-level secrets.
 18. **[OWNER-GATED] First deploy.**
@@ -646,7 +646,7 @@ Delete: none.
 
 ```bash
 # Local image checks (Docker Desktop)
-cd /Users/sweet-home/Works/atelier
+cd /Users/sweet-home/Works/artio
 docker build -t atelier:local --build-arg ATELIER_VERSION=local --label org.opencontainers.image.revision=local .
 D=$(mktemp -d); docker run -d --name atelier-local --read-only --tmpfs /tmp --cap-drop ALL \
   --security-opt no-new-privileges:true -p 127.0.0.1:8091:8000 -v "$D:/data" \

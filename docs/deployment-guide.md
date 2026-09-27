@@ -18,7 +18,7 @@ Artio's files never mix with Folio's, cdn's or LearnFlow's:
 | `/opt/artio/current-tag` | The image tag the running container was started with | written only by `deploy.sh` |
 | `/opt/artio/previous-tag` | The image tag to fall back to on a manual rollback | written only by `deploy.sh` |
 | `/mnt/artio-data` | The dedicated 50 GB data volume, mounted by UUID with `nofail` | `10001:10001`, 0750 |
-| `/mnt/artio-data/.artio-volume` | Sentinel file; the app refuses to start in production without it | `10001:10001` |
+| `/mnt/artio-data/.artio-volume` | Sentinel file; the app refuses to start in production without it. It was `.atelier-volume` before the rename to Artio, and was renamed with the app. | `10001:10001` |
 
 The container itself runs as uid 10001, with a read-only root filesystem, all capabilities
 dropped, `no-new-privileges`, and binds only to `127.0.0.1:8090`. It sits on its own Docker

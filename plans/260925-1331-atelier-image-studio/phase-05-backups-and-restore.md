@@ -222,23 +222,23 @@ The service is `Type=oneshot`, `After=network-online.target docker.service`, `Re
 <!-- Updated: Red Team 2026-09-25 - F2 backup pipeline -->
 
 Create:
-- `/Users/sweet-home/Works/atelier/atelier/backup_db.py`
-- `/Users/sweet-home/Works/atelier/atelier/backup_status.py`
-- `/Users/sweet-home/Works/atelier/deploy/backup/atelier-backup-common.sh`
-- `/Users/sweet-home/Works/atelier/deploy/backup/atelier-backup.sh`
-- `/Users/sweet-home/Works/atelier/deploy/backup/atelier-backup-verify.sh`
-- `/Users/sweet-home/Works/atelier/deploy/systemd/atelier-backup.service`
-- `/Users/sweet-home/Works/atelier/deploy/systemd/atelier-backup.timer`
-- `/Users/sweet-home/Works/atelier/deploy/systemd/atelier-backup-verify.service`
-- `/Users/sweet-home/Works/atelier/deploy/systemd/atelier-backup-verify.timer`
-- `/Users/sweet-home/Works/atelier/tests/fixtures/restic-ls-recursive.jsonl`: captured from a real run of the pinned restic image against a throwaway local repository.
-- `/Users/sweet-home/Works/atelier/tests/test_backup_db.py`
-- `/Users/sweet-home/Works/atelier/tests/test_backup_status.py`
+- `/Users/sweet-home/Works/artio/atelier/backup_db.py`
+- `/Users/sweet-home/Works/artio/atelier/backup_status.py`
+- `/Users/sweet-home/Works/artio/deploy/backup/atelier-backup-common.sh`
+- `/Users/sweet-home/Works/artio/deploy/backup/atelier-backup.sh`
+- `/Users/sweet-home/Works/artio/deploy/backup/atelier-backup-verify.sh`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-backup.service`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-backup.timer`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-backup-verify.service`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-backup-verify.timer`
+- `/Users/sweet-home/Works/artio/tests/fixtures/restic-ls-recursive.jsonl`: captured from a real run of the pinned restic image against a throwaway local repository.
+- `/Users/sweet-home/Works/artio/tests/test_backup_db.py`
+- `/Users/sweet-home/Works/artio/tests/test_backup_status.py`
 
 Modify:
-- `/Users/sweet-home/Works/atelier/atelier/routes/pages.py`: the header-status handler adds `backup_status.read_status()`.
-- `/Users/sweet-home/Works/atelier/atelier/templates/partials/header_status.html`: the backup badge.
-- `/Users/sweet-home/Works/atelier/docs/deployment-guide.md`: the "Backups and restore" section, with restore paths (a) and (b) and the purge procedure.
+- `/Users/sweet-home/Works/artio/atelier/routes/pages.py`: the header-status handler adds `backup_status.read_status()`.
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/header_status.html`: the backup badge.
+- `/Users/sweet-home/Works/artio/docs/deployment-guide.md`: the "Backups and restore" section, with restore paths (a) and (b) and the purge procedure.
 
 Delete: none.
 
@@ -350,7 +350,7 @@ Delete: none.
 ## Verification
 
 ```bash
-cd /Users/sweet-home/Works/atelier
+cd /Users/sweet-home/Works/artio
 uv run ruff check && uv run pytest -q tests/test_backup_db.py tests/test_backup_status.py
 shellcheck deploy/backup/*.sh
 # [OWNER-GATED] on folio-prod-1

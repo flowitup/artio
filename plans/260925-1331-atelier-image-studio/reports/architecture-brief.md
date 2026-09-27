@@ -3,7 +3,7 @@
 This brief turns the accepted contract (`plans/reports/brainstorm-260925-1507-atelier-image-studio-hetzner.md`) into a concrete design and phase outline. Where it says "per research-0X", take the final detail from that report. Where research contradicts this brief, flag it in the plan's risk notes rather than silently switching.
 
 ## 1. Fixed facts
-- **Local folder:** `/Users/sweet-home/Works/atelier`. It becomes the git repo for `flowitup/atelier`. Don't rename the folder, because the Claude memory path depends on it. It currently holds `qwen21_uc_app.py`, `test_deployed.py`, `README.md`, `out/` (generated images, private), `logs/` (may contain token output, **never commit**) and `plans/`.
+- **Local folder:** `/Users/sweet-home/Works/artio`. It becomes the git repo for `flowitup/atelier`. Don't rename the folder, because the Claude memory path depends on it. It currently holds `qwen21_uc_app.py`, `test_deployed.py`, `README.md`, `out/` (generated images, private), `logs/` (may contain token output, **never commit**) and `plans/`.
 - **Server:** `folio-prod-1`, Folio's production box (see `reports/scout-02-folio-prod-1-live-state.md`).
   - The root disk has 21 GB free, so Atelier data goes on a dedicated Hetzner Volume.
   - Ingress is a locally-managed cloudflared config. LearnFlow is `learn → localhost:8080` (Caddy).

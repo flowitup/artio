@@ -211,34 +211,34 @@ Pages and partials: `base.html` (nav, header-status slot, flash area), `generate
 <!-- Updated: Red Team 2026-09-25 - F14 interfaces and tests -->
 
 Create:
-- `/Users/sweet-home/Works/atelier/atelier/main.py` (`create_app` factory, lifespan, middlewares, static mount, templates)
-- `/Users/sweet-home/Works/atelier/atelier/auth.py` (verifier, `SERVICE_ROUTES`, `service_may_call`, `same_origin`)
-- `/Users/sweet-home/Works/atelier/atelier/request_limits.py` (the body-size ASGI middleware)
-- `/Users/sweet-home/Works/atelier/atelier/library.py` (gallery listing, image detail and image delete queries; phase 7 extends it)
-- `/Users/sweet-home/Works/atelier/atelier/routes/__init__.py`
-- `/Users/sweet-home/Works/atelier/atelier/routes/pages.py` (`/`, `/gallery`, `/batches/{id}`, `/partials/header-status`)
-- `/Users/sweet-home/Works/atelier/atelier/routes/generate.py`
-- `/Users/sweet-home/Works/atelier/atelier/routes/jobs.py`
-- `/Users/sweet-home/Works/atelier/atelier/routes/images.py`
-- `/Users/sweet-home/Works/atelier/atelier/routes/health.py`
-- `/Users/sweet-home/Works/atelier/atelier/templates/base.html`, `generate.html`, `queue.html`, `gallery.html`, `batch.html`, `image.html`
-- `/Users/sweet-home/Works/atelier/atelier/templates/partials/gen_params.html`, `job_rows.html`, `image_card.html`, `header_status.html`, `flash.html`
-- `/Users/sweet-home/Works/atelier/atelier/static/htmx.min.js` (vendored, pinned 2.x)
-- `/Users/sweet-home/Works/atelier/atelier/static/pico.min.css` (vendored, pinned 2.x)
-- `/Users/sweet-home/Works/atelier/atelier/static/app.css`
-- `/Users/sweet-home/Works/atelier/atelier/static/VERSIONS.txt` (upstream URL, version and SHA-256 of each vendored file)
-- `/Users/sweet-home/Works/atelier/tests/test_auth.py`
-- `/Users/sweet-home/Works/atelier/tests/test_request_limits.py`
-- `/Users/sweet-home/Works/atelier/tests/test_ui_generate.py`
-- `/Users/sweet-home/Works/atelier/tests/test_ui_queue.py`
-- `/Users/sweet-home/Works/atelier/tests/test_ui_gallery.py`
-- `/Users/sweet-home/Works/atelier/tests/test_ui_image.py`
-- `/Users/sweet-home/Works/atelier/tests/test_health.py`
-- `/Users/sweet-home/Works/atelier/tests/test_pages_hide_secrets.py`
+- `/Users/sweet-home/Works/artio/atelier/main.py` (`create_app` factory, lifespan, middlewares, static mount, templates)
+- `/Users/sweet-home/Works/artio/atelier/auth.py` (verifier, `SERVICE_ROUTES`, `service_may_call`, `same_origin`)
+- `/Users/sweet-home/Works/artio/atelier/request_limits.py` (the body-size ASGI middleware)
+- `/Users/sweet-home/Works/artio/atelier/library.py` (gallery listing, image detail and image delete queries; phase 7 extends it)
+- `/Users/sweet-home/Works/artio/atelier/routes/__init__.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/pages.py` (`/`, `/gallery`, `/batches/{id}`, `/partials/header-status`)
+- `/Users/sweet-home/Works/artio/atelier/routes/generate.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/jobs.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/images.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/health.py`
+- `/Users/sweet-home/Works/artio/atelier/templates/base.html`, `generate.html`, `queue.html`, `gallery.html`, `batch.html`, `image.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/gen_params.html`, `job_rows.html`, `image_card.html`, `header_status.html`, `flash.html`
+- `/Users/sweet-home/Works/artio/atelier/static/htmx.min.js` (vendored, pinned 2.x)
+- `/Users/sweet-home/Works/artio/atelier/static/pico.min.css` (vendored, pinned 2.x)
+- `/Users/sweet-home/Works/artio/atelier/static/app.css`
+- `/Users/sweet-home/Works/artio/atelier/static/VERSIONS.txt` (upstream URL, version and SHA-256 of each vendored file)
+- `/Users/sweet-home/Works/artio/tests/test_auth.py`
+- `/Users/sweet-home/Works/artio/tests/test_request_limits.py`
+- `/Users/sweet-home/Works/artio/tests/test_ui_generate.py`
+- `/Users/sweet-home/Works/artio/tests/test_ui_queue.py`
+- `/Users/sweet-home/Works/artio/tests/test_ui_gallery.py`
+- `/Users/sweet-home/Works/artio/tests/test_ui_image.py`
+- `/Users/sweet-home/Works/artio/tests/test_health.py`
+- `/Users/sweet-home/Works/artio/tests/test_pages_hide_secrets.py`
 
 Modify:
-- `/Users/sweet-home/Works/atelier/tests/conftest.py`: add the `access_key`, `jwks_without_network` and `mint` helpers; an `app_client` fixture that builds `create_app(settings, gateway=fake_gateway, start_worker=False)` inside `TestClient`; `owner_headers` and `service_headers` helpers (a minted JWT, plus `Origin` for the owner); and a `route_ids` fixture mapping each path parameter name to a real row ID.
-- `/Users/sweet-home/Works/atelier/atelier/jobs.py`: read helpers for the queue view, if they are not already there.
+- `/Users/sweet-home/Works/artio/tests/conftest.py`: add the `access_key`, `jwks_without_network` and `mint` helpers; an `app_client` fixture that builds `create_app(settings, gateway=fake_gateway, start_worker=False)` inside `TestClient`; `owner_headers` and `service_headers` helpers (a minted JWT, plus `Origin` for the owner); and a `route_ids` fixture mapping each path parameter name to a real row ID.
+- `/Users/sweet-home/Works/artio/atelier/jobs.py`: read helpers for the queue view, if they are not already there.
 
 Delete: none.
 
@@ -341,7 +341,7 @@ Delete: none.
 ## Verification
 
 ```bash
-cd /Users/sweet-home/Works/atelier
+cd /Users/sweet-home/Works/artio
 uv run ruff check
 uv run pytest -q
 uv run pytest -q tests/test_auth.py tests/test_request_limits.py tests/test_health.py -v
