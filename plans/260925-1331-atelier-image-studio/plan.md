@@ -1,7 +1,7 @@
 ---
 title: "Atelier — private multi-model image studio on Hetzner"
 description: "Private FastAPI + HTMX image studio on folio-prod-1 that drives Modal GPU backends, with Access auth, async jobs, GPU controls and a Claude plugin."
-status: pending
+status: completed
 priority: P2
 effort: 68h
 branch: main
