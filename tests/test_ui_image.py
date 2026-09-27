@@ -140,12 +140,13 @@ def test_delete_with_an_oversized_image_id_is_refused_with_200_and_a_message_not
     assert f"Image {oversized} no longer exists." in response.text
 
 
-def test_delete_confirmation_text_names_the_backup_retention(
+def test_delete_confirmation_says_there_is_no_backup(
     app_client, owner_headers, registry, fake_gateway, png_bytes, conn
 ):
     image_id, _ = _finished_image(app_client, owner_headers, registry, fake_gateway, png_bytes, conn)
     response = app_client.get(f"/images/{image_id}", headers=owner_headers)
-    assert "6 months" in response.text
+    assert "There are no backups, so this cannot be undone." in response.text
+    assert "6 months" not in response.text
 
 
 def test_delete_removes_image_job_and_empty_batch(

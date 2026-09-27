@@ -32,7 +32,7 @@
   <a href="/generate?from={{ image.id }}" role="button" class="secondary">Save these settings as preset</a>
   {% endif %}
   <button hx-post="/images/{{ image.id }}/delete"
-          hx-confirm="Delete this image? It is removed from Atelier now, with its prompt and job record; nightly backups keep a copy for up to 6 months."
+          hx-confirm="Delete this image? It is removed from Atelier now, with its prompt and job record. There are no backups, so this cannot be undone."
           class="contrast">Delete</button>
 </p>
 {% endblock %}
