@@ -1,7 +1,7 @@
 ---
 phase: 7
 title: "Prompt library & custom workflows"
-status: pending
+status: completed
 priority: P2
 effort: "6h"
 dependencies: [6]
@@ -207,7 +207,19 @@ Delete: none.
 - [x] `tests/test_library.py` and `tests/test_custom_workflows.py` green; the crawl still visits every GET route. 31 + 50 tests pass (including escaping proofs for preset/workflow names, the tag editor's rejected-value echo and ComfyUI error text); `route_ids` gained `preset_id` and `workflow_id`; `test_pages_hide_secrets.py` and `test_auth.py::test_service_identity_is_refused_outside_the_api_allowlist` pass unmodified with the four new GET routes (`/library`, `/workflows`, `/workflows/{id}/download`, `/jobs/{id}/graph.json`) swept in. Full suite: 488 passed, 1 deselected (`uv run pytest -q`); `uv run ruff check` clean.
 - [x] Also fixed (logged for this phase): the gallery's "Next" link no longer appears past the last page. `gallery_page` now fetches one row past the page size to compute a real `has_next`, under the same filters. Verified: `test_gallery_last_page_shows_no_next_link`, `test_gallery_exactly_one_full_page_shows_no_next_link`, `test_gallery_full_page_with_more_rows_shows_next_link`, `test_gallery_pagination_links_preserve_the_active_filters` pass (added to `tests/test_ui_gallery.py`, the existing gallery test file).
 - [x] Independent-review fix round: the one Medium (search matched the negative prompt) and all ten Lows fixed in place. Search is now restricted to `{prompt tags}:`; a NUL in the search box is stripped instead of reaching FTS5; the tag filter normalizes case and whitespace before matching; upload rejects deeply nested JSON, a huge integer literal and a graph nested past a 64-level bound (at upload, and again defensively before `with_seed` for a graph already stored); a "keep"-mode seed at or above 2**63 is refused before the batch is created, not after a paid render; workflow names are capped at 100 characters; non-ASCII graphs are stored without `ensure_ascii` doubling their size; `/workflows` lists id/name/backend/date only, without parsing every stored graph; a workflow batch's gallery header now names the workflow instead of showing an empty link and "None"; and `/gallery?page=` is bounded so the offset can no longer overflow (a non-integer path id, and other hand-typed URLs, keep FastAPI's existing 422, per the owner's decision). 29 new tests added (`tests/test_library.py`: 39 total; `tests/test_custom_workflows.py`: 69 total; `tests/test_ui_gallery.py`: +2). Full suite: 517 passed, 1 deselected; `uv run ruff check` clean. A hand-rolled mutation re-run (20 targeted mutants: the 8 previously-surviving ones this round could fix, plus 12 new ones for M1/L1-L10) caught all 20; a 12-mutant spot-check of previously-killed mutants in the same files confirmed no regression. See the fullstack-developer report's "Review fixes" section for the full list and the mutation-run detail.
-- [ ] [OWNER-GATED] Live run of a stored workflow and of an invalid graph
+- [x] [OWNER-GATED] Live run of a stored workflow and of an invalid graph
+
+### Live verification (2026-09-27, owner-approved, about $0.10 of Modal credits)
+
+The feature deployed as `2b52414`: the deploy was green, `/healthz` was ok, and the app log showed no errors.
+
+- **Download:** `/jobs/1/graph.json` returned 200 as `application/json`, an 8-node Qwen graph (UNETLoader, CLIPLoader, VAELoader, TextEncodeQwenImage21, EmptyLatentImage, KSampler, VAEDecode, SaveImage).
+- **Upload and run:** the graph was uploaded as `qwen-portrait` for `qwen21-uc`, then run with count 2 and random seeds (batch 5).
+  - Both jobs finished (66 s and 53 s, one shared cold start) with distinct seeds, 820447650 and 1127088148.
+  - Both image pages link the workflow and offer their own graph download. Job 8's stored graph carries its seed (820447650) in the KSampler.
+- **Invalid graph:** `broken-graph` (node 7's `VAEDecode` changed to `NoSuchNode`) uploaded fine, since node types are ComfyUI's to judge. Its run (batch 6) failed within about 20 s, showing ComfyUI's escaped text: `ComfyUI rejected workflow: {"error": {"type": "missing_node_type", "message": "Node 'NoSuchNode' not found. …", "details": "Node ID '#7'" …}}`.
+- **Delete:** `broken-graph` was deleted (200). Only `qwen-portrait` remains, and the failed job still shows its reason.
+- **Gap found and fixed:** the queue's Model column and the batch page printed "None" for workflow jobs, the sibling of the gallery-header fix. Both now say "custom workflow". The new test fails without the fix, and the suite now has 522 tests.
 
 ## Success Criteria
 
