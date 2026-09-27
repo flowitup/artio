@@ -97,6 +97,12 @@ LearnFlow's CI secret since July. Root's keys now are:
 If a later audit turns up any other unrestricted CI-held key, stop and decide with the owner
 how to handle it before continuing. Don't fold it into a rollout silently.
 
+**Re-check of 2026-09-27 (read-only).** The 2026-09-26 audit recorded root only; this re-run
+also covered other accounts. Root's `authorized_keys` still holds exactly the four keys in the
+table above and no others (the old `SHA256:JZx+jCJH…` key remains absent). No `/home/*` account
+has an `authorized_keys` file, and the only login-capable accounts are `root` and the system
+`sync` account. So no non-root account carries a login key on the host.
+
 **Residual risk (accepted):** any root-capable key can read Artio's `.env` and images. That
 means Folio's CI key and the owner's admin key.
 
@@ -117,9 +123,47 @@ LearnFlow's first deploy on its own key (run 36275371916, 2026-09-26) passed:
 
 These are the only changes made to LearnFlow. Folio, cdn and Artio are unaffected by them.
 
-The old `hetzner-deploy` key is still authorized on the separate dev server `dev-deploy`
-(46.224.60.209). Its private half sat in LearnFlow's GitHub secrets from July to September, so
-rotating it there is worth doing too.
+The old `hetzner-deploy` key was also authorized on the separate dev server `dev-deploy`
+(46.224.60.209). At 22:28 UTC the same day, the owner confirmed that this server has been
+deleted, so there was nothing left to rotate on it. Read-only checks run first had pointed
+the same way:
+- the IP didn't answer on ports 22, 80 or 443, or to ping, while other SSH hosts answered;
+- on 2026-09-25 it had presented a host key that didn't match the one the Mac had trusted since
+  July (`SHA256:ZUGwy2vy…` instead of `SHA256:67G+PLVr…`);
+- the Hetzner project that the Mac's `hcloud` CLI can see holds no server or primary IP at that
+  address.
+
+Treat 46.224.60.209 as someone else's machine from now on: don't connect to it and don't accept
+its host key. Its old host keys stay in the Mac's `known_hosts`, so an accidental connection
+stops at a host-key warning. The Mac was cleaned up at the same time:
+- the `dev-deploy` block was removed from `~/.ssh/config` (backup
+  `~/.ssh/config.bak-20260926T222826Z`);
+- the `hetzner-dev` Docker context (`ssh://dev-deploy`) was removed;
+- nothing else on the Mac referenced `~/.ssh/hetzner-deploy`, and the owner then deleted the key
+  file.
+
+Where else the old key could still be trusted was checked right after, read-only:
+- GitHub: it isn't a login, signing or deploy key on the owner's account, or on any of the 44
+  repositories the account administers (none of them has a deploy key at all).
+- Hetzner: the old key was registered in **two** projects, under two different names (matched
+  by fingerprint, not name):
+  - In the project that runs `folio-prod-1` (46.224.167.14), as `hetzner-deploy`. This was
+    **deleted 2026-09-27** with a fresh Read-Write token the owner issued; that project now has
+    no SSH keys registered.
+  - In a second project (the one first read through the `learnflow` `hcloud` context), as
+    `mac-to-hetzner` (created 2026-07-20), alongside `hetzner-dev`, `plane` and a
+    `mt.bui.fr@gmail.com` key. That whole project was **deleted** during the same 2026-09-27
+    cleanup: its API token, which made live calls at ~00:30, was rejected as unauthorized by
+    ~00:53 (the local token file was unchanged since July, so the change was Hetzner-side), and
+    the owner confirmed the console now lists only the `folio-prod` project. Deleting the
+    project removed `mac-to-hetzner` and `hetzner-dev` with it.
+
+  With both registrations gone, the old key is no longer registered in any Hetzner project the
+  owner holds. A registered key opens nothing on its own, but Hetzner would have installed it on
+  any new server or rescue session it was selected for, which is why clearing it mattered.
+- GCP `flowitup-folio-prod`: there are no VMs, and the owner's OS Login profile holds no keys.
+  The project-wide SSH keys couldn't be read (the account lacks `compute.projects.get`), but
+  with no VMs they apply to nothing.
 
 ### Cloudflare Access application — done
 
