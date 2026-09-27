@@ -33,7 +33,7 @@
           {% endif %}
           {% if job.status == 'failed' and job.error %}<br><small class="error-text">{{ job.error }}</small>{% endif %}
         </td>
-        <td>{{ job.model_id }}</td>
+        <td>{{ job.model_id or 'custom workflow' }}</td>
         <td>{{ job.prompt_excerpt }}</td>
         <td>{{ job.seed }}</td>
         <td>{% if job.status == 'cancelled' %}—{% else %}{{ job.elapsed_s }}s{% endif %}</td>

@@ -861,3 +861,19 @@ def test_gallery_header_escapes_the_workflow_name(
     assert response.status_code == 200
     assert "&lt;b&gt;bold-wf&lt;/b&gt;" in response.text
     assert "<b>bold-wf</b>" not in response.text
+
+
+def test_queue_and_batch_pages_name_a_workflow_batch_instead_of_none(
+    app_client, owner_headers, registry, conn, settings, rng
+):
+    """Workflow jobs have no model_id by design, so the queue row and the batch page must say
+    "custom workflow" rather than render a literal "None"."""
+    workflow = _store(conn, registry, "queue-wf", VALID_GRAPH)
+    batch_id = jobs.create_workflow_batch(conn, registry, settings, workflow, "random", None, 1, rng)
+    conn.commit()
+
+    for url in (f"/queue?batch={batch_id}", f"/batches/{batch_id}"):
+        response = app_client.get(url, headers=owner_headers)
+        assert response.status_code == 200, url
+        assert "custom workflow" in response.text, url
+        assert ">None<" not in response.text and "None &middot;" not in response.text, url

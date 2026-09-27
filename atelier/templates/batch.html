@@ -4,7 +4,7 @@
 <h1>Batch {{ detail.batch_id }}</h1>
 <p>{{ detail.prompt }}</p>
 {% if detail.negative %}<p><small>Negative: {{ detail.negative }}</small></p>{% endif %}
-<p><small>{{ detail.model_id }} &middot; {{ detail.created_at | localtime }}</small></p>
+<p><small>{{ detail.model_id or 'custom workflow' }} &middot; {{ detail.created_at | localtime }}</small></p>
 <table>
   <thead><tr><th>Status</th><th>Seed</th><th>Result</th></tr></thead>
   <tbody>
