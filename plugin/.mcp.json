@@ -1,13 +1,13 @@
 {
   "mcpServers": {
-    "atelier": {
+    "artio": {
       "command": "uv",
-      "args": ["run", "--locked", "--script", "${CLAUDE_PLUGIN_ROOT}/mcp_servers/atelier_mcp/server.py"],
+      "args": ["run", "--locked", "--script", "${CLAUDE_PLUGIN_ROOT}/mcp_servers/artio_mcp/server.py"],
       "env": {
-        "ATELIER_BASE_URL": "${user_config.base_url}",
-        "ATELIER_CF_CLIENT_ID": "${user_config.cf_client_id}",
-        "ATELIER_CF_CLIENT_SECRET": "${user_config.cf_client_secret}",
-        "ATELIER_SAVE_DIR": "${user_config.save_dir}"
+        "ARTIO_BASE_URL": "${user_config.base_url}",
+        "ARTIO_CF_CLIENT_ID": "${user_config.cf_client_id}",
+        "ARTIO_CF_CLIENT_SECRET": "${user_config.cf_client_secret}",
+        "ARTIO_SAVE_DIR": "${user_config.save_dir}"
       }
     }
   }

@@ -11,7 +11,7 @@ from starlette.responses import PlainTextResponse
 from starlette.routing import Route
 from starlette.testclient import TestClient
 
-from atelier.request_limits import DEFAULT_LIMIT_BYTES, BodySizeLimitMiddleware
+from artio.request_limits import DEFAULT_LIMIT_BYTES, BodySizeLimitMiddleware
 
 # -- isolated middleware unit tests -------------------------------------------------------------------
 

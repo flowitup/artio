@@ -1,6 +1,6 @@
-# Atelier
+# Artio
 
-Atelier is the owner's private image studio at `atelier.flowitup.com`: one FastAPI + HTMX + SQLite
+Artio is the owner's private image studio at `artio.flowitup.com`: one FastAPI + HTMX + SQLite
 service, running in a confined container on `folio-prod-1`, that drives Modal GPU backends behind
 Cloudflare Access. It has no public sign-up and no anonymous access -- every request needs a verified
 Access identity, either the owner's own email or the Claude plugin's service token.
@@ -16,11 +16,11 @@ Access identity, either the owner's own email or the Claude plugin's service tok
   text or tag, combined with any filter.
 - **Custom workflows.** Upload a ComfyUI API-format graph, run it with a seed mode of its own, and
   keep every past run's exact graph even after the stored workflow is deleted.
-- **Claude plugin.** Drive Atelier from Claude -- list models, generate, check status, search and
+- **Claude plugin.** Drive Artio from Claude -- list models, generate, check status, search and
   fetch images, list and run stored workflows, and see GPU status -- through a versioned JSON API
   (`/api/v1`) the plugin's service token can reach and nothing else.
 
-**There are no backups.** The owner decided on 2026-09-27 that Atelier keeps no copy beyond its own
+**There are no backups.** The owner decided on 2026-09-27 that Artio keeps no copy beyond its own
 data volume: if it is lost, the images and the database are gone. Download anything worth keeping
 from the gallery.
 
@@ -29,12 +29,12 @@ from the gallery.
 Requires Python 3.12 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-uv sync                                    # installs atelier's own dependencies (the dev group too)
-uv run uvicorn atelier.main:create_app --factory --reload --env-file .env.local
+uv sync                                    # installs artio's own dependencies (the dev group too)
+uv run uvicorn artio.main:create_app --factory --reload --env-file .env.local
 ```
 
-A local run needs `ATELIER_ENV=development` (or `test`) plus the Access settings in
-`atelier/config.py`; `ATELIER_ENV=development` also allows `ATELIER_DEV_IDENTITY=owner` to bypass
+A local run needs `ARTIO_ENV=development` (or `test`) plus the Access settings in
+`artio/config.py`; `ARTIO_ENV=development` also allows `ARTIO_DEV_IDENTITY=owner` to bypass
 JWT verification entirely for local iteration -- never set outside development, and refused by
 `load_settings` if it is.
 
@@ -44,8 +44,8 @@ JWT verification entirely for local iteration -- never set outside development, 
 uv run ruff check                                           # lint
 uv run pytest -q                                             # the whole suite (one opt-in live test is deselected by default)
 uv run pytest -m live                                        # the opt-in test that spends real Modal GPU time
-bash plugin/build.sh                                          # builds plugin/atelier.plugin (the Claude desktop app's install file)
-uv lock --script plugin/mcp_servers/atelier_mcp/server.py     # regenerate the plugin's lockfile after changing its dependencies
+bash plugin/build.sh                                          # builds plugin/artio.plugin (the Claude desktop app's install file)
+uv lock --script plugin/mcp_servers/artio_mcp/server.py     # regenerate the plugin's lockfile after changing its dependencies
 ```
 
 The Modal backend itself lives under `modal/` (`qwen21_uc_app.py`); `uv run modal deploy
@@ -60,5 +60,5 @@ model files.
   the credential table, day-to-day deployment, the Claude plugin install (both routes), token
   rotation and the leak response, and the routine-operations runbook.
 - **`plugin/README.md`** -- the Claude plugin's own install, configuration and privacy notes.
-- **`plans/260925-1331-atelier-image-studio/`** -- the phase-by-phase implementation plan and its
+- **`plans/260925-1331-artio-image-studio/`** -- the phase-by-phase implementation plan and its
   acceptance record.

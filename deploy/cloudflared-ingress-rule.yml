@@ -1,4 +1,4 @@
 # Insert immediately before `- service: http_status:404` in /etc/cloudflared/config.yml.
 # See docs/deployment-guide.md for the replica-cutover procedure that applies this rule safely.
-  - hostname: atelier.flowitup.com
+  - hostname: artio.flowitup.com
     service: http://localhost:8090

@@ -14,9 +14,9 @@ import json
 from fastapi.routing import iter_route_contexts
 from starlette.testclient import TestClient
 
-from atelier import db
-from atelier.auth import SERVICE_ROUTES, service_may_call
-from atelier.main import create_app
+from artio import db
+from artio.auth import SERVICE_ROUTES, service_may_call
+from artio.main import create_app
 from tests.conftest import AUD, OWNER_EMAIL, PLUGIN_CLIENT_ID, PUBLIC_ORIGIN, TEAM_DOMAIN, mint
 
 # -- the allowlist itself -----------------------------------------------------------------------------
@@ -515,10 +515,10 @@ def test_image_file_is_confined_to_the_image_store(app_client, service_headers, 
     )
     conn.execute(
         "INSERT INTO images (job_id, model_id, file_png, file_thumb, width, height, bytes, sha256, created_at) "
-        "VALUES (1, 'm', 'atelier.db', 'a.webp', 8, 8, 1, 'sha', 0)"
+        "VALUES (1, 'm', 'artio.db', 'a.webp', 8, 8, 1, 'sha', 0)"
     )
     conn.commit()
-    image_id = conn.execute("SELECT id FROM images WHERE file_png = 'atelier.db'").fetchone()["id"]
+    image_id = conn.execute("SELECT id FROM images WHERE file_png = 'artio.db'").fetchone()["id"]
 
     response = app_client.get(f"/api/v1/images/{image_id}/file", headers=service_headers)
     assert response.status_code == 404
@@ -550,7 +550,7 @@ def test_image_file_traversal_via_a_corrupted_row_is_refused(app_client, service
 
 
 def test_workflows_list_never_calls_get_workflow_per_row(app_client, service_headers, route_ids, monkeypatch):
-    from atelier import custom_workflows
+    from artio import custom_workflows
 
     def _boom(*args, **kwargs):
         raise AssertionError("GET /api/v1/workflows must not call get_workflow per row (that's the N+1)")

@@ -1,22 +1,22 @@
 {
-  "name": "atelier",
+  "name": "artio",
   "version": "0.1.0",
-  "description": "Drive Atelier, a private multi-model image studio, from Claude: list models, generate images, check job and GPU status, and search, fetch and run stored workflows -- all through the Cloudflare Access service token, never warm or stop a GPU backend.",
+  "description": "Drive Artio, a private multi-model image studio, from Claude: list models, generate images, check job and GPU status, and search, fetch and run stored workflows -- all through the Cloudflare Access service token, never warm or stop a GPU backend.",
   "author": {
     "name": "Manh Trung BUI"
   },
-  "keywords": ["atelier", "image-generation", "comfyui", "modal", "mcp"],
+  "keywords": ["artio", "image-generation", "comfyui", "modal", "mcp"],
   "userConfig": {
     "base_url": {
       "type": "string",
-      "title": "Atelier base URL",
-      "description": "Atelier's public origin, e.g. https://atelier.flowitup.com. Only change this for a non-default deployment.",
-      "default": "https://atelier.flowitup.com"
+      "title": "Artio base URL",
+      "description": "Artio's public origin, e.g. https://artio.flowitup.com. Only change this for a non-default deployment.",
+      "default": "https://artio.flowitup.com"
     },
     "cf_client_id": {
       "type": "string",
       "title": "Cloudflare Access client ID",
-      "description": "The Cloudflare Access service token's Client ID (not secret) for the atelier-plugin token, from Zero Trust -> Access -> Service credentials.",
+      "description": "The Cloudflare Access service token's Client ID (not secret) for the artio-plugin token, from Zero Trust -> Access -> Service credentials.",
       "required": true
     },
     "cf_client_secret": {
@@ -29,8 +29,8 @@
     "save_dir": {
       "type": "directory",
       "title": "Save folder",
-      "description": "Where the plugin saves full-resolution PNGs it fetches from Atelier. Created with restrictive permissions if it doesn't exist.",
-      "default": "~/Atelier"
+      "description": "Where the plugin saves full-resolution PNGs it fetches from Artio. Created with restrictive permissions if it doesn't exist.",
+      "default": "~/Artio"
     }
   }
 }

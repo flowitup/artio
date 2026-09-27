@@ -8,11 +8,11 @@ import re
 
 import pytest
 
-from atelier import jobs
-from atelier.library import PAGE_SIZE
-from atelier.registry import Backend, Model, ParamSchema, Registry, SizePreset
-from atelier.worker import Worker
-from atelier.workflows import qwen_image_21
+from artio import jobs
+from artio.library import PAGE_SIZE
+from artio.registry import Backend, Model, ParamSchema, Registry, SizePreset
+from artio.worker import Worker
+from artio.workflows import qwen_image_21
 
 
 @pytest.fixture
@@ -211,7 +211,7 @@ def test_gallery_huge_page_number_answers_422_not_500(app_client, owner_headers)
 
 
 def test_gallery_page_at_the_new_bound_still_answers_200(app_client, owner_headers):
-    from atelier.routes.pages import _MAX_PAGE
+    from artio.routes.pages import _MAX_PAGE
 
     response = app_client.get("/gallery", headers=owner_headers, params={"page": _MAX_PAGE})
     assert response.status_code == 200  # a page this far out is simply empty, never an error

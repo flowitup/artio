@@ -13,7 +13,7 @@ import dataclasses
 from fastapi.routing import iter_route_contexts
 from starlette.testclient import TestClient
 
-from atelier.main import create_app
+from artio.main import create_app
 from tests.conftest import OWNER_EMAIL, PUBLIC_ORIGIN, mint
 
 MODAL_TOKEN_SECRET_SENTINEL = "sk-modal-token-secret-should-never-appear-in-any-page"

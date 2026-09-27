@@ -8,8 +8,8 @@ import json
 
 from starlette.testclient import TestClient
 
-from atelier import db
-from atelier.main import create_app
+from artio import db
+from artio.main import create_app
 from tests.conftest import OWNER_EMAIL, PUBLIC_ORIGIN, mint
 
 
@@ -158,7 +158,7 @@ def test_post_generate_disk_guard_error_rerenders_with_200_and_no_job_created(re
         settings,
         public_origin=PUBLIC_ORIGIN,
         cf_team_domain="https://flowitupteam-test.cloudflareaccess.com",
-        cf_aud="test-atelier-aud",
+        cf_aud="test-artio-aud",
         owner_email=OWNER_EMAIL,
         plugin_client_id="test-plugin-client-id.access",
         data_cap_gb=0,

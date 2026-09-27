@@ -1,4 +1,4 @@
-"""Shared fixtures for the Atelier test suite."""
+"""Shared fixtures for the Artio test suite."""
 
 import asyncio
 import dataclasses
@@ -15,11 +15,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from PIL import Image
 from starlette.testclient import TestClient
 
-from atelier import custom_workflows, db, jobs, library
-from atelier.config import Settings, load_settings
-from atelier.main import create_app
-from atelier.registry import DEFAULT_REGISTRY, Registry
-from atelier.worker import Worker
+from artio import custom_workflows, db, jobs, library
+from artio.config import Settings, load_settings
+from artio.main import create_app
+from artio.registry import DEFAULT_REGISTRY, Registry
+from artio.worker import Worker
 from tests.fakes import FakeModalGateway
 
 BACKEND_SCRIPT = Path(__file__).resolve().parent.parent / "modal" / "qwen21_uc_app.py"
@@ -28,10 +28,10 @@ BACKEND_SCRIPT = Path(__file__).resolve().parent.parent / "modal" / "qwen21_uc_a
 # JWKS fetch is always patched (see jwks_without_network below), so TEAM_DOMAIN and AUD never need to
 # resolve to anything real.
 TEAM_DOMAIN = "https://flowitupteam-test.cloudflareaccess.com"
-AUD = "test-atelier-aud"
+AUD = "test-artio-aud"
 OWNER_EMAIL = "owner@example.com"
 PLUGIN_CLIENT_ID = "test-plugin-client-id.access"
-PUBLIC_ORIGIN = "http://atelier.test"
+PUBLIC_ORIGIN = "http://artio.test"
 
 
 @pytest.fixture(scope="session")
@@ -54,8 +54,8 @@ def settings(tmp_path) -> Settings:
     """A `test`-env Settings backed by a fresh temporary data directory."""
     return load_settings(
         {
-            "ATELIER_ENV": "test",
-            "ATELIER_DATA_DIR": str(tmp_path),
+            "ARTIO_ENV": "test",
+            "ARTIO_DATA_DIR": str(tmp_path),
         }
     )
 

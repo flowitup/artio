@@ -21,13 +21,13 @@ import uvloop
 from modal.types import FunctionStats
 from starlette.testclient import TestClient
 
-from atelier import db, gpu, jobs, modal_gateway
-from atelier import worker as worker_module
-from atelier.gpu import GpuStatus, GpuStatusView, display_state
-from atelier.main import create_app
-from atelier.modal_gateway import AppState, ModalSdkGateway, parse_app_state, parse_container_ids
-from atelier.registry import DEFAULT_REGISTRY
-from atelier.worker import _STOP_STEP_TIMEOUT_S, PING_INTERVAL_S, StopOutcome, Worker
+from artio import db, gpu, jobs, modal_gateway
+from artio import worker as worker_module
+from artio.gpu import GpuStatus, GpuStatusView, display_state
+from artio.main import create_app
+from artio.modal_gateway import AppState, ModalSdkGateway, parse_app_state, parse_container_ids
+from artio.registry import DEFAULT_REGISTRY
+from artio.worker import _STOP_STEP_TIMEOUT_S, PING_INTERVAL_S, StopOutcome, Worker
 
 BACKEND = DEFAULT_REGISTRY.backends["qwen21-uc"]
 
@@ -1395,7 +1395,7 @@ def test_recycle_task_result_is_logged(conn, registry, settings, fake_gateway, r
             await worker.poll_once()
         await asyncio.gather(*worker._recycle_tasks)
 
-    with caplog.at_level("INFO", logger="atelier.worker"):
+    with caplog.at_level("INFO", logger="artio.worker"):
         asyncio.run(go())
 
     assert any("scheduled backend recycle" in record.message for record in caplog.records)
@@ -1768,8 +1768,8 @@ def test_startup_resumes_the_pinger_for_an_open_window(settings, registry, fake_
         assert not worker.pingers[backend.id].done()
 
 
-def test_startup_clears_a_window_that_expired_while_atelier_was_down(settings, registry, fake_gateway):
-    """A window that had already ended before Atelier restarted must be cleared right away, instead
+def test_startup_clears_a_window_that_expired_while_artio_was_down(settings, registry, fake_gateway):
+    """A window that had already ended before Artio restarted must be cleared right away, instead
     of sitting there as a stale "warm until" nobody's pinger will ever reach and clear."""
     db.migrate(settings)
     backend = registry.backends["qwen21-uc"]

@@ -9,7 +9,7 @@ import time
 
 import pytest
 
-from atelier import library
+from artio import library
 
 
 def _finished_image(

@@ -10,9 +10,9 @@ import time
 
 import pytest
 
-from atelier import custom_workflows, jobs, library
-from atelier.custom_workflows import UnknownWorkflow, WorkflowError
-from atelier.storage import DiskGuardError
+from artio import custom_workflows, jobs, library
+from artio.custom_workflows import UnknownWorkflow, WorkflowError
+from artio.storage import DiskGuardError
 
 VALID_GRAPH = {
     "1": {"class_type": "KSampler", "inputs": {"seed": 111, "steps": 20}},

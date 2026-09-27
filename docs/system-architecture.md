@@ -1,8 +1,8 @@
-# Atelier — system architecture
+# Artio — system architecture
 
-Atelier is one FastAPI service (a single uvicorn worker), HTMX for the owner's browser UI, SQLite for
+Artio is one FastAPI service (a single uvicorn worker), HTMX for the owner's browser UI, SQLite for
 all state, and Modal for GPU rendering. It runs in a confined Docker container on `folio-prod-1`
-(shared with Folio, cdn and LearnFlow) and is published at `atelier.flowitup.com` through Cloudflare's
+(shared with Folio, cdn and LearnFlow) and is published at `artio.flowitup.com` through Cloudflare's
 existing tunnel and Access. There are no backups: the data volume holds the only copy of the images
 and the database (owner decision, 2026-09-27).
 
@@ -11,32 +11,32 @@ and the database (owner decision, 2026-09-27).
 ```
 Owner's browser ──┐                                    ┌─► ComfyUI on Modal GPU (per model backend)
 Claude (plugin) ───┼─► Cloudflare Access ─► FastAPI app ─┤
-curl (blocked) ────┘         (JWT)              │        └─► SQLite (atelier.db)
+curl (blocked) ────┘         (JWT)              │        └─► SQLite (artio.db)
                                                  └─► static files, Jinja2 templates
 ```
 
-- **`atelier/main.py`** -- the app factory: builds `Settings`, wires the middleware stack, the
+- **`artio/main.py`** -- the app factory: builds `Settings`, wires the middleware stack, the
   routers and the `Worker`, and runs migrations at startup.
-- **`atelier/auth.py`** -- verifies the Cloudflare Access JWT and maps it to one of exactly two
+- **`artio/auth.py`** -- verifies the Cloudflare Access JWT and maps it to one of exactly two
   identities (below); the one auth middleware every request (except `/healthz`) passes through.
-- **`atelier/routes/`** -- HTML routes (`pages`, `generate`, `jobs`, `images`, `gpu`, `library`,
+- **`artio/routes/`** -- HTML routes (`pages`, `generate`, `jobs`, `images`, `gpu`, `library`,
   `workflows`) plus the versioned JSON API (`api_v1`). Every route calls the same service layer.
-- **`atelier/jobs.py`, `atelier/library.py`, `atelier/custom_workflows.py`, `atelier/gpu.py`,
-  `atelier/storage.py`** -- the service layer: batches and jobs, the gallery/search/preset/tag
+- **`artio/jobs.py`, `artio/library.py`, `artio/custom_workflows.py`, `artio/gpu.py`,
+  `artio/storage.py`** -- the service layer: batches and jobs, the gallery/search/preset/tag
   library, custom ComfyUI workflow storage and validation, GPU status and warm/stop, and PNG/thumbnail
   storage plus the disk guard. Both the HTML routes and the JSON API call these directly -- there is
   exactly one implementation of "create a batch" or "search images", never two.
-- **`atelier/worker.py`** -- the background engine: one dispatcher loop (spawns queued jobs onto
+- **`artio/worker.py`** -- the background engine: one dispatcher loop (spawns queued jobs onto
   Modal, respecting each backend's `max_inflight`) and one poller loop (reads finished/failed results
   and stores them), plus the warm-up pinger and the Stop sequence. Runs in-process; a restart just
   means both loops re-derive their state from the database.
-- **`atelier/modal_gateway.py`** -- the only module that talks to Modal (`modal.Cls.from_name`,
+- **`artio/modal_gateway.py`** -- the only module that talks to Modal (`modal.Cls.from_name`,
   `.spawn()`, `.get(timeout=0)`, `app list`, `container list`). Every other module reaches Modal only
   through this boundary, which is exactly what tests replace with `FakeModalGateway`.
-- **`atelier/registry.py`** -- the model-neutral registry: which backends and models exist, their
+- **`artio/registry.py`** -- the model-neutral registry: which backends and models exist, their
   parameter bounds and size presets, and which Modal app/class backs each one. Adding a model is a
   registry entry plus a Modal backend, never a migration.
-- **SQLite (`atelier.db`)** -- `batches`, `jobs`, `images`, `tags`/`image_tags`, `presets`,
+- **SQLite (`artio.db`)** -- `batches`, `jobs`, `images`, `tags`/`image_tags`, `presets`,
   `workflows`, `backend_state` and an FTS5 index (`images_fts`) over prompt, negative prompt and tags.
   One connection per request (`db.session`), WAL mode, `busy_timeout`.
 
@@ -45,8 +45,8 @@ curl (blocked) ────┘         (JWT)              │        └─► S
 The origin verifies the Access JWT itself (signature, `aud`, `iss`, `exp`, RS256 only) via
 `AccessVerifier`, then maps its claims to one of exactly two identities:
 
-- **owner** -- the JWT's `email` matches `ATELIER_OWNER_EMAIL` (case-insensitive).
-- **service** -- the JWT's `common_name` matches `ATELIER_PLUGIN_CLIENT_ID` (the Cloudflare Access
+- **owner** -- the JWT's `email` matches `ARTIO_OWNER_EMAIL` (case-insensitive).
+- **service** -- the JWT's `common_name` matches `ARTIO_PLUGIN_CLIENT_ID` (the Cloudflare Access
   service token's Client ID), compared with `hmac.compare_digest`.
 
 Any other JWT, or none, is refused with a 403 before any route runs -- plain text for an HTML route,
@@ -64,7 +64,7 @@ alone:
   owner POST already requires, API included. There is no separate rule for the API here: it is simply
   never blocked, the same as any other route the owner identity can already reach.
 - **CSRF:** every owner POST/PUT/PATCH/DELETE must have an `Origin` (or, failing that, a `Referer`)
-  that matches `ATELIER_PUBLIC_ORIGIN`. Service-identity calls come from the plugin process, not a
+  that matches `ARTIO_PUBLIC_ORIGIN`. Service-identity calls come from the plugin process, not a
   browser, so they carry no such header and are not a CSRF vector; the origin check applies only to
   the owner identity.
 
@@ -119,10 +119,10 @@ Images live under `data_dir/images/YYYY/MM/job-<id>.png` (as Modal returned them
 WebP thumbnail; paths are always resolved back under `data_dir` before any read, write or delete
 (`storage.resolve_under`), so a corrupted row or a planted symlink can never escape it. The disk guard
 (`storage.disk_status`) refuses a new batch when the volume's free space drops under a floor
-(`ATELIER_MIN_FREE_GB`) or stored image bytes reach a cap (`ATELIER_DATA_CAP_GB`), both configurable
+(`ARTIO_MIN_FREE_GB`) or stored image bytes reach a cap (`ARTIO_DATA_CAP_GB`), both configurable
 and shown in the header on every page.
 
-**There are no backups.** The owner decided on 2026-09-27 that Atelier keeps no copy beyond its own
+**There are no backups.** The owner decided on 2026-09-27 that Artio keeps no copy beyond its own
 data volume: the originally planned restic-to-R2 pipeline, weekly verify, restore runbook and purge
 procedure were dropped along with that phase. If the volume is lost or deleted, the images and the
 database are gone; anything worth keeping must be downloaded from the gallery ahead of time.
@@ -130,7 +130,7 @@ database are gone; anything worth keeping must be downloaded from the gallery ah
 ## Deploy
 
 Every push to `main` builds a digest-pinned image and deploys it to `folio-prod-1` through a single,
-purpose-restricted SSH key (`restrict,command="/opt/atelier/deploy.sh"`). The deploy step validates the
+purpose-restricted SSH key (`restrict,command="/opt/artio/deploy.sh"`). The deploy step validates the
 pulled image's revision label, declared volumes and size before touching anything running, applies it
 inside a transient systemd unit (so a dropped connection can't interrupt it), and requires `/healthz`
 to report the right version and both worker loops ticking before committing -- rolling back

@@ -1,4 +1,4 @@
-"""Runs the real Atelier app under uvicorn, behind a test stand-in for Cloudflare Access, and drives
+"""Runs the real Artio app under uvicorn, behind a test stand-in for Cloudflare Access, and drives
 the plugin's own MCP server (loaded fresh with importlib) against it over real HTTP -- the only fake
 anywhere in this path is FakeModalGateway; JWT verification, routing and auth are all the real code.
 
@@ -29,13 +29,13 @@ import pytest
 import uvicorn
 from PIL import Image as PILImage
 
-from atelier.config import load_settings
-from atelier.main import create_app
-from atelier.registry import DEFAULT_REGISTRY
+from artio.config import load_settings
+from artio.main import create_app
+from artio.registry import DEFAULT_REGISTRY
 from tests.conftest import AUD, OWNER_EMAIL, TEAM_DOMAIN, mint
 from tests.fakes import FakeModalGateway
 
-SERVER_PATH = Path(__file__).resolve().parent.parent / "plugin" / "mcp_servers" / "atelier_mcp" / "server.py"
+SERVER_PATH = Path(__file__).resolve().parent.parent / "plugin" / "mcp_servers" / "artio_mcp" / "server.py"
 _module_counter = itertools.count()
 
 PLUGIN_CLIENT_ID = "plugin-integration-test-client-id.access"
@@ -77,17 +77,17 @@ def plugin_server(tmp_path_factory, access_key):
     """Starts the real app (wrapped in AccessEdge) under uvicorn in a background thread, in its
     normal (non-dev) auth mode, with FakeModalGateway as the only fake. Shared across every test in
     this module: each test's own data (a generated image, a stored workflow) simply accumulates,
-    exactly like a real running Atelier would."""
+    exactly like a real running Artio would."""
     data_dir = tmp_path_factory.mktemp("plugin-integration-data")
     settings = load_settings(
         {
-            "ATELIER_ENV": "test",
-            "ATELIER_DATA_DIR": str(data_dir),
-            "ATELIER_PUBLIC_ORIGIN": "http://127.0.0.1",
-            "ATELIER_CF_TEAM_DOMAIN": TEAM_DOMAIN,
-            "ATELIER_CF_AUD": AUD,
-            "ATELIER_OWNER_EMAIL": OWNER_EMAIL,
-            "ATELIER_PLUGIN_CLIENT_ID": PLUGIN_CLIENT_ID,
+            "ARTIO_ENV": "test",
+            "ARTIO_DATA_DIR": str(data_dir),
+            "ARTIO_PUBLIC_ORIGIN": "http://127.0.0.1",
+            "ARTIO_CF_TEAM_DOMAIN": TEAM_DOMAIN,
+            "ARTIO_CF_AUD": AUD,
+            "ARTIO_OWNER_EMAIL": OWNER_EMAIL,
+            "ARTIO_PLUGIN_CLIENT_ID": PLUGIN_CLIENT_ID,
         }
     )
     fake_gateway = FakeModalGateway()
@@ -107,7 +107,7 @@ def plugin_server(tmp_path_factory, access_key):
     assert server.started, "uvicorn did not report started within 10s"
 
     # A stored workflow for run_workflow(by name), seeded the same way conftest.route_ids is.
-    conn = sqlite3.connect(data_dir / "atelier.db")
+    conn = sqlite3.connect(data_dir / "artio.db")
     conn.execute(
         "INSERT INTO workflows (name, backend_id, graph_json, created_at) VALUES (?, ?, ?, ?)",
         ("plugin-test-workflow", "qwen21-uc", json.dumps(_ROUTE_IDS_GRAPH), time.time()),
@@ -133,18 +133,18 @@ def _load_server_module(
     client_secret: str = PLUGIN_CLIENT_SECRET,
     client_id: str = PLUGIN_CLIENT_ID,
 ):
-    """Loads plugin/mcp_servers/atelier_mcp/server.py fresh, so its module-level client picks up the
+    """Loads plugin/mcp_servers/artio_mcp/server.py fresh, so its module-level client picks up the
     env this call sets -- a stale import from an earlier test (or a different secret) must never
     leak into another test's module object."""
-    monkeypatch.setenv("ATELIER_BASE_URL", base_url)
-    monkeypatch.setenv("ATELIER_CF_CLIENT_ID", client_id)
-    monkeypatch.setenv("ATELIER_CF_CLIENT_SECRET", client_secret)
-    monkeypatch.setenv("ATELIER_SAVE_DIR", str(save_dir))
+    monkeypatch.setenv("ARTIO_BASE_URL", base_url)
+    monkeypatch.setenv("ARTIO_CF_CLIENT_ID", client_id)
+    monkeypatch.setenv("ARTIO_CF_CLIENT_SECRET", client_secret)
+    monkeypatch.setenv("ARTIO_SAVE_DIR", str(save_dir))
     # A unique module name per call, registered in sys.modules before exec_module(): pydantic's
     # eager schema building (triggered by mcp.tool() at import time) resolves `Literal` and other
     # annotations through sys.modules[cls.__module__], which fails with a "not fully defined" error
     # if the module was never registered there.
-    name = f"atelier_plugin_server_under_test_{next(_module_counter)}"
+    name = f"artio_plugin_server_under_test_{next(_module_counter)}"
     spec = importlib.util.spec_from_file_location(name, SERVER_PATH)
     module = importlib.util.module_from_spec(spec)
     sys.modules[name] = module
@@ -171,7 +171,7 @@ async def _finish_submitted_jobs(
     the tool call that is waiting on the same jobs, on this test's own event loop."""
 
     def _submitted_call_ids() -> list[str]:
-        conn = sqlite3.connect(data_dir / "atelier.db")
+        conn = sqlite3.connect(data_dir / "artio.db")
         try:
             rows = conn.execute("SELECT call_id FROM jobs WHERE status = 'submitted' AND call_id IS NOT NULL")
             return [row[0] for row in rows.fetchall()]
@@ -200,7 +200,7 @@ async def _wait_for_terminal_status(data_dir: Path, job_id: int, *, timeout: flo
     later test's own naive completion-watcher, which matches on that DB status alone."""
 
     def _status() -> str | None:
-        conn = sqlite3.connect(data_dir / "atelier.db")
+        conn = sqlite3.connect(data_dir / "artio.db")
         try:
             row = conn.execute("SELECT status FROM jobs WHERE id = ?", (job_id,)).fetchone()
             return row[0] if row else None
@@ -223,7 +223,7 @@ async def _call(module, name: str, args: dict):
 
 
 def test_plugin_end_to_end(monkeypatch, plugin_server, png_bytes, tmp_path):
-    save_dir = tmp_path / "atelier-save"
+    save_dir = tmp_path / "artio-save"
     server = _load_server_module(monkeypatch, plugin_server["base_url"], save_dir=save_dir)
 
     async def scenario():
@@ -363,7 +363,7 @@ def test_plugin_wrong_secret_is_reported_as_service_token_rejected(monkeypatch, 
     server = _load_server_module(
         monkeypatch,
         plugin_server["base_url"],
-        save_dir=tmp_path / "atelier-save-wrong-secret",
+        save_dir=tmp_path / "artio-save-wrong-secret",
         client_secret="not-the-real-secret",
     )
 
@@ -450,7 +450,7 @@ def test_secret_with_trailing_newline_authenticates_and_every_tool_stays_secret_
     server = _load_server_module(
         monkeypatch,
         plugin_server["base_url"],
-        save_dir=tmp_path / "atelier-save-secret-audit",
+        save_dir=tmp_path / "artio-save-secret-audit",
         client_secret=PLUGIN_CLIENT_SECRET + "\n",
     )
 
@@ -563,7 +563,7 @@ def test_generate_keeps_the_batch_when_one_save_fails(monkeypatch, tmp_path):
     async def fake_save_png(image_id, seed, save_to=None):
         if image_id == 101:
             raise module.ToolError("simulated fetch failure")
-        return module.save_dir() / f"atelier-{image_id}-{seed}.png"
+        return module.save_dir() / f"artio-{image_id}-{seed}.png"
 
     monkeypatch.setattr(module, "save_png", fake_save_png)
 
@@ -643,7 +643,7 @@ def test_generate_includes_at_most_one_thumbnail_even_with_multiple_saved_images
     monkeypatch.setattr(module.api, "request", fake_request)
 
     async def fake_save_png(image_id, seed, save_to=None):
-        path = module.save_dir() / f"atelier-{image_id}-{seed}.png"
+        path = module.save_dir() / f"artio-{image_id}-{seed}.png"
         path.write_bytes(png_bytes)
         return path
 

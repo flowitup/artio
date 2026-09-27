@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
-# Atelier deploy entry point.
+# Artio deploy entry point.
 #   Forced command of the CI key:  SSH_ORIGINAL_COMMAND="deploy <40-hex sha> sha256:<64-hex digest>",
 #                                   with a short-lived registry token and the registry user on stdin.
 #   Owner at a root shell:         deploy.sh rollback | stop | start | status
 # apply, rollback, stop and start all run detached, inside a transient systemd unit, so a dropped SSH
-# or terminal session cannot interrupt a change half-way. Nothing outside /opt/atelier and Atelier's
+# or terminal session cannot interrupt a change half-way. Nothing outside /opt/artio and Artio's
 # own images is ever touched.
 set -euo pipefail
 umask 077
-readonly IMAGE=ghcr.io/flowitup/atelier KEEP=3 MAX_IMAGE_BYTES=1500000000
-log()           { logger -t atelier-deploy -- "$*"; printf '%s\n' "$*" >&2 2>/dev/null || true; }
+readonly IMAGE=ghcr.io/flowitup/artio KEEP=3 MAX_IMAGE_BYTES=1500000000
+log()           { logger -t artio-deploy -- "$*"; printf '%s\n' "$*" >&2 2>/dev/null || true; }
 reject()        { log "rejected: $1"; exit 2; }
 reject_pulled() { docker image rm "$IMAGE@$digest" >/dev/null 2>&1 || true; log "rejected: $1"; exit 2; }
 lock()          { exec 9>"$DIR/.deploy.lock"; flock -n 9 || { log "another deploy is running"; exit 75; }; }
-dc()            { docker compose -f "$DIR/compose.yaml" -p atelier "$@"; }
-up()            { ATELIER_TAG="$1" dc up -d --wait --wait-timeout 60 2>&1 | logger -t atelier-deploy; }
+dc()            { docker compose -f "$DIR/compose.yaml" -p artio "$@"; }
+up()            { ARTIO_TAG="$1" dc up -d --wait --wait-timeout 60 2>&1 | logger -t artio-deploy; }
 healthy() {
   local body; body=$(curl -fsS --max-time 5 http://127.0.0.1:8090/healthz 2>/dev/null) || return 1
   [[ "$body" == *"\"version\":\"$1\""* && "$body" == *"\"loops\":\"ok\""* ]]
@@ -23,7 +23,7 @@ write_tags() {   # $1 = new current, $2 = new previous; each file is replaced by
   printf '%s\n' "$2" > previous-tag.new && printf '%s\n' "$1" > current-tag.new
   mv -f previous-tag.new previous-tag && mv -f current-tag.new current-tag
 }
-prune() {        # best-effort cleanup: keep current, previous and the newest other Atelier tag, and
+prune() {        # best-effort cleanup: keep current, previous and the newest other Artio tag, and
                   # sweep this repository's own dangling images; a failure here must never fail a
                   # deploy that already succeeded, but is logged so a real failure isn't silently lost
   docker image ls "$IMAGE" --format '{{.Tag}}' | grep -E '^[0-9a-f]{40}$' \
@@ -54,8 +54,8 @@ size_from_registry() {   # best-effort: the linux/amd64 image's compressed byte 
 }
 detach() {   # re-exec ourselves inside a transient, clean-environment systemd unit; the unit gets the
              # directory already resolved below, never a value from the caller's own environment
-  exec systemd-run --unit="atelier-$1" -p Type=oneshot --wait --collect --pipe --quiet \
-    --setenv=ATELIER_DETACHED=1 --setenv="ATELIER_DEPLOY_DIR=$DIR" "$DIR/deploy.sh" "$@"
+  exec systemd-run --unit="artio-$1" -p Type=oneshot --wait --collect --pipe --quiet \
+    --setenv=ARTIO_DETACHED=1 --setenv="ARTIO_DEPLOY_DIR=$DIR" "$DIR/deploy.sh" "$@"
 }
 
 trap '' PIPE                                        # a vanished SSH or terminal session must not stop a change
@@ -69,12 +69,12 @@ if [[ -n "${SSH_ORIGINAL_COMMAND:-}" ]]; then        # the CI key may only deplo
   [[ "$SSH_ORIGINAL_COMMAND" =~ ^deploy\ ([0-9a-f]{40})\ (sha256:[0-9a-f]{64})$ ]] || reject "unexpected command"
   verb=deploy; sha=${BASH_REMATCH[1]}; digest=${BASH_REMATCH[2]}
 else
-  readonly DIR=${ATELIER_DEPLOY_DIR:-/opt/atelier}
+  readonly DIR=${ARTIO_DEPLOY_DIR:-/opt/artio}
   verb=${1:-}; sha=${2:-}
   [[ "$verb" =~ ^(rollback|stop|start|status|apply)$ ]] || reject "unexpected command"
 fi
 
-if [[ "$verb" =~ ^(apply|stop|start|rollback)$ && -z "${ATELIER_DETACHED:-}" ]]; then
+if [[ "$verb" =~ ^(apply|stop|start|rollback)$ && -z "${ARTIO_DETACHED:-}" ]]; then
   if [[ "$verb" == apply ]]; then detach apply "$sha"; else detach "$verb"; fi
 fi
 
@@ -133,7 +133,7 @@ case "$verb" in
     ;;
   stop)
     lock; cd "$DIR"; touch maintenance
-    ATELIER_TAG=$(cat current-tag) dc down 2>&1 | logger -t atelier-deploy
+    ARTIO_TAG=$(cat current-tag) dc down 2>&1 | logger -t artio-deploy
     ;;
   start)
     lock; cd "$DIR"; t=$(cat current-tag)
@@ -142,6 +142,6 @@ case "$verb" in
   status)
     cd "$DIR"; echo "current=$(cat current-tag) previous=$(cat previous-tag 2>/dev/null || true)"
     [[ -e maintenance ]] && echo "maintenance mode is active"
-    ATELIER_TAG=$(cat current-tag) dc ps; curl -fsS --max-time 5 http://127.0.0.1:8090/healthz || true
+    ARTIO_TAG=$(cat current-tag) dc ps; curl -fsS --max-time 5 http://127.0.0.1:8090/healthz || true
     ;;
 esac

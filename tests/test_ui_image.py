@@ -7,8 +7,8 @@ import asyncio
 import pytest
 from starlette.testclient import TestClient
 
-from atelier import jobs
-from atelier.main import create_app
+from artio import jobs
+from artio.main import create_app
 from tests.conftest import PUBLIC_ORIGIN
 
 
@@ -77,7 +77,7 @@ def test_download_sets_content_disposition_with_id_and_seed(
     response = app_client.get(f"/images/{image_id}/file", headers=owner_headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
-    assert response.headers["content-disposition"] == f'attachment; filename="atelier-{image_id}-42.png"'
+    assert response.headers["content-disposition"] == f'attachment; filename="artio-{image_id}-42.png"'
     assert response.content == png_bytes
 
 

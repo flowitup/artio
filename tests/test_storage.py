@@ -11,7 +11,7 @@ from pathlib import Path
 import pytest
 from PIL import Image
 
-from atelier import storage
+from artio import storage
 
 
 def test_save_result_stores_the_png_as_received_and_a_thumbnail(settings, png_bytes):

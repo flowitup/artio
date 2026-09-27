@@ -12,8 +12,8 @@ from dataclasses import dataclass
 
 from modal.types import FunctionStats
 
-from atelier.modal_gateway import AppState, PollResult
-from atelier.registry import Backend
+from artio.modal_gateway import AppState, PollResult
+from artio.registry import Backend
 
 
 @dataclass

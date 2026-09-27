@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Gallery &middot; Artio{% endblock %}
+{% block content %}
+<h1>Gallery</h1>
+<form method="get" action="/gallery">
+  <fieldset role="group">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search prompt or tags">
+    <input type="text" name="tag" value="{{ tag }}" placeholder="Tag">
+    <select name="model">
+      <option value="">All models</option>
+      {% for m in models %}
+      <option value="{{ m.id }}" {% if m.id == selected_model %}selected{% endif %}>{{ m.label }}</option>
+      {% endfor %}
+      <option value="{{ workflow_filter }}" {% if selected_model == workflow_filter %}selected{% endif %}>
+        Custom workflows
+      </option>
+    </select>
+    <label>
+      <input type="checkbox" name="starred" value="1" {% if starred %}checked{% endif %}>
+      Starred only
+    </label>
+    <button type="submit">Filter</button>
+  </fieldset>
+</form>
+
+{% if not groups %}
+<p>No images yet.</p>
+{% endif %}
+
+{% for group in groups %}
+<section>
+  <header>
+    <a href="/batches/{{ group.batch_id }}"><strong>{% if group.model_id is none %}workflow: {{ group.workflow_name or 'deleted workflow' }}{% else %}{{ group.prompt | truncate(80) }}{% endif %}</strong></a>
+    &middot; {{ group.model_id or 'custom workflow' }}
+    &middot; {{ group.images | length }} image{{ 's' if group.images | length != 1 else '' }}
+    &middot; {{ group.created_at | localtime }}
+  </header>
+  <div class="thumb-grid">
+    {% for image in group.images %}
+    {% include "partials/image_card.html" %}
+    {% endfor %}
+  </div>
+</section>
+{% endfor %}
+
+<nav>
+  <ul>
+    {% if prev_url %}<li><a href="{{ prev_url }}">Previous</a></li>{% endif %}
+    {% if next_url %}<li><a href="{{ next_url }}">Next</a></li>{% endif %}
+  </ul>
+</nav>
+{% endblock %}
