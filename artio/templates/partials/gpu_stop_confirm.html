@@ -1,0 +1,10 @@
+<div id="gpu-panel">
+  <p class="error-text" role="alert">
+    Stop {{ backend.label }}? {{ queued }} queued and {{ running }} running job(s) will be cancelled.
+  </p>
+  <form hx-post="/gpu/{{ backend.id }}/stop" hx-target="#gpu-panel" hx-swap="outerHTML">
+    <input type="hidden" name="confirm" value="1">
+    <button type="submit">Confirm stop</button>
+  </form>
+  <a href="/gpu" role="button" class="secondary">Cancel</a>
+</div>

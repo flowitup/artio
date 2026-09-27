@@ -5,8 +5,8 @@ import json
 
 import pytest
 
-from atelier import jobs
-from atelier.registry import (
+from artio import jobs
+from artio.registry import (
     DEFAULT_REGISTRY,
     QWEN21_UC_BACKEND,
     InvalidParams,
@@ -16,8 +16,8 @@ from atelier.registry import (
     SizePreset,
     UnknownModel,
 )
-from atelier.worker import Worker
-from atelier.workflows import GenParams
+from artio.worker import Worker
+from artio.workflows import GenParams
 
 
 def test_model_returns_the_qwen_entry(registry):

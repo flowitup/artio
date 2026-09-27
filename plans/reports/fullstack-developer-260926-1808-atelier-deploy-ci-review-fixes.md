@@ -2,7 +2,7 @@
 
 ## Executed Phase
 - Task: apply the accepted code-review findings (`plans/260925-1331-atelier-image-studio/reports/code-review-deploy-ci.md`) to the Part A deploy/CI deliverables
-- Plan: /Users/sweet-home/Works/qwen21-uc-modal/plans/260925-1331-atelier-image-studio
+- Plan: /Users/sweet-home/Works/artio/plans/260925-1331-atelier-image-studio
 - Status: completed
 
 ## Files modified

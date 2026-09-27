@@ -1,7 +1,7 @@
 ---
 phase: 7
 title: "Prompt library & custom workflows"
-status: pending
+status: completed
 priority: P2
 effort: "6h"
 dependencies: [6]
@@ -144,25 +144,25 @@ The "Workflow → Export (API)" menu label in ComfyUI's current frontend is [UNV
 <!-- Updated: Red Team 2026-09-25 - F10 service identity and scope -->
 
 Create:
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/custom_workflows.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/library.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/workflows.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/library.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/workflows.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/star_button.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/tag_editor.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/test_library.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/test_custom_workflows.py`
+- `/Users/sweet-home/Works/artio/atelier/custom_workflows.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/library.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/workflows.py`
+- `/Users/sweet-home/Works/artio/atelier/templates/library.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/workflows.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/star_button.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/tag_editor.html`
+- `/Users/sweet-home/Works/artio/tests/test_library.py`
+- `/Users/sweet-home/Works/artio/tests/test_custom_workflows.py`
 
 Modify:
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/library.py`: presets CRUD, `toggle_star`, `set_tags`, `search` and the combined gallery filters.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/jobs.py`: `create_workflow_batch(conn, registry, workflow, seed_mode, seed, count, rng)`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/generate.py`: `?preset=` prefill.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/pages.py`: the gallery's `q`, `tag` and `starred` filters and the "Custom workflows" model option.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/jobs.py`: `GET /jobs/{id}/graph.json`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/main.py`: include the two routers, and register the 3 MB body limit for `POST /workflows` in the body-size middleware.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/generate.html`, `gallery.html`, `image.html` and `base.html` (nav links to Library and Workflows).
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/conftest.py`: add `preset_id` and `workflow_id` to the `route_ids` fixture, so the route-enumerating crawl can visit the new GET routes.
+- `/Users/sweet-home/Works/artio/atelier/library.py`: presets CRUD, `toggle_star`, `set_tags`, `search` and the combined gallery filters.
+- `/Users/sweet-home/Works/artio/atelier/jobs.py`: `create_workflow_batch(conn, registry, workflow, seed_mode, seed, count, rng)`.
+- `/Users/sweet-home/Works/artio/atelier/routes/generate.py`: `?preset=` prefill.
+- `/Users/sweet-home/Works/artio/atelier/routes/pages.py`: the gallery's `q`, `tag` and `starred` filters and the "Custom workflows" model option.
+- `/Users/sweet-home/Works/artio/atelier/routes/jobs.py`: `GET /jobs/{id}/graph.json`.
+- `/Users/sweet-home/Works/artio/atelier/main.py`: include the two routers, and register the 3 MB body limit for `POST /workflows` in the body-size middleware.
+- `/Users/sweet-home/Works/artio/atelier/templates/generate.html`, `gallery.html`, `image.html` and `base.html` (nav links to Library and Workflows).
+- `/Users/sweet-home/Works/artio/tests/conftest.py`: add `preset_id` and `workflow_id` to the `route_ids` fixture, so the route-enumerating crawl can visit the new GET routes.
 
 Delete: none.
 
@@ -198,14 +198,28 @@ Delete: none.
 
 ## Todo List
 
-- [ ] Presets save, load, overwrite and delete (`POST /presets`, `POST /presets/{id}/delete`), with the generate-form integration
-- [ ] Star toggle and tag editor with normalization; FTS triggers keep tags searchable
-- [ ] Prompt search as a quoted, prefix-matched filter with combined filters; newest first in the batch-grouped gallery
-- [ ] Workflow upload: body limited before parsing, UI-format hint, structure, output node, size, unique name
-- [ ] Seed override on KSampler-family nodes; N > 1 without a seed input is rejected
-- [ ] Workflow runs store the exact graph and the `workflow_id`; image page shows the workflow and graph download
-- [ ] `tests/test_library.py` and `tests/test_custom_workflows.py` green; the crawl still visits every GET route
-- [ ] [OWNER-GATED] Live run of a stored workflow and of an invalid graph
+- [x] Presets save, load, overwrite and delete (`POST /presets`, `POST /presets/{id}/delete`), with the generate-form integration. Verified: `test_preset_round_trip_save_load_overwrite_delete`, `test_save_preset_upsert_bumps_updated_at_not_created_at`, `test_save_preset_rejects_an_empty_name`, `test_delete_unknown_preset_raises`, `test_save_preset_route_requires_a_model` pass.
+- [x] Star toggle and tag editor with normalization; FTS triggers keep tags searchable. Verified: `test_star_toggle_and_tag_set_are_searchable`, `test_star_toggle_is_reversible`, `test_star_on_unknown_image_shows_inline_message_not_a_500`, `test_invalid_tags_are_rejected_inline_with_200` (4 cases), `test_tags_are_normalized_lowercase_trimmed_and_deduplicated` pass.
+- [x] Prompt search as a quoted, prefix-matched filter with combined filters; newest first in the batch-grouped gallery. Verified: `test_search_matches_prompt_words_and_prefixes`, `test_search_results_are_newest_first`, `test_search_treats_operators_and_quotes_as_text` (8 adversarial inputs, including quotes/parens/NEAR/AND/OR/unicode), `test_deleted_image_leaves_the_search_index`, `test_gallery_combines_q_tag_starred_and_model_filters` pass.
+- [x] Workflow upload: body limited before parsing, UI-format hint, structure, output node, size, unique name. Verified: `test_ui_format_upload_is_rejected_with_export_hint`, `test_graph_without_output_node_is_rejected`, `test_upload_over_the_body_limit_is_refused_before_parsing` (413, no row created, garbage bytes prove it never reaches the parser), `test_upload_file_over_2mb_is_rejected_with_the_body_under_3mb` (the file-size cap, distinct from the request-body cap), `test_upload_duplicate_name_is_rejected`, plus the `validate_api_graph`/`store_workflow` unit tests in `test_custom_workflows.py` pass.
+- [x] Seed override on KSampler-family nodes; N > 1 without a seed input is rejected. Verified: `test_run_creates_n_jobs_with_distinct_overridden_seeds`, `test_linked_seed_inputs_are_left_untouched`, `test_run_rejects_count_over_one_when_the_graph_has_no_seed_input`, `test_run_allows_count_one_when_the_graph_has_no_seed_input`, `test_keep_seed_mode_requires_count_one`, `test_keep_seed_mode_sends_the_graph_unmodified` pass.
+- [x] Workflow runs store the exact graph and the `workflow_id`; image page shows the workflow and graph download. Verified: `test_result_keeps_workflow_link_and_exact_graph`, `test_delete_workflow_clears_the_jobs_link_but_keeps_the_graph`, `test_download_returns_the_exact_stored_graph` pass.
+- [x] `tests/test_library.py` and `tests/test_custom_workflows.py` green; the crawl still visits every GET route. 31 + 50 tests pass (including escaping proofs for preset/workflow names, the tag editor's rejected-value echo and ComfyUI error text); `route_ids` gained `preset_id` and `workflow_id`; `test_pages_hide_secrets.py` and `test_auth.py::test_service_identity_is_refused_outside_the_api_allowlist` pass unmodified with the four new GET routes (`/library`, `/workflows`, `/workflows/{id}/download`, `/jobs/{id}/graph.json`) swept in. Full suite: 488 passed, 1 deselected (`uv run pytest -q`); `uv run ruff check` clean.
+- [x] Also fixed (logged for this phase): the gallery's "Next" link no longer appears past the last page. `gallery_page` now fetches one row past the page size to compute a real `has_next`, under the same filters. Verified: `test_gallery_last_page_shows_no_next_link`, `test_gallery_exactly_one_full_page_shows_no_next_link`, `test_gallery_full_page_with_more_rows_shows_next_link`, `test_gallery_pagination_links_preserve_the_active_filters` pass (added to `tests/test_ui_gallery.py`, the existing gallery test file).
+- [x] Independent-review fix round: the one Medium (search matched the negative prompt) and all ten Lows fixed in place. Search is now restricted to `{prompt tags}:`; a NUL in the search box is stripped instead of reaching FTS5; the tag filter normalizes case and whitespace before matching; upload rejects deeply nested JSON, a huge integer literal and a graph nested past a 64-level bound (at upload, and again defensively before `with_seed` for a graph already stored); a "keep"-mode seed at or above 2**63 is refused before the batch is created, not after a paid render; workflow names are capped at 100 characters; non-ASCII graphs are stored without `ensure_ascii` doubling their size; `/workflows` lists id/name/backend/date only, without parsing every stored graph; a workflow batch's gallery header now names the workflow instead of showing an empty link and "None"; and `/gallery?page=` is bounded so the offset can no longer overflow (a non-integer path id, and other hand-typed URLs, keep FastAPI's existing 422, per the owner's decision). 29 new tests added (`tests/test_library.py`: 39 total; `tests/test_custom_workflows.py`: 69 total; `tests/test_ui_gallery.py`: +2). Full suite: 517 passed, 1 deselected; `uv run ruff check` clean. A hand-rolled mutation re-run (20 targeted mutants: the 8 previously-surviving ones this round could fix, plus 12 new ones for M1/L1-L10) caught all 20; a 12-mutant spot-check of previously-killed mutants in the same files confirmed no regression. See the fullstack-developer report's "Review fixes" section for the full list and the mutation-run detail.
+- [x] [OWNER-GATED] Live run of a stored workflow and of an invalid graph
+
+### Live verification (2026-09-27, owner-approved, about $0.10 of Modal credits)
+
+The feature deployed as `2b52414`: the deploy was green, `/healthz` was ok, and the app log showed no errors.
+
+- **Download:** `/jobs/1/graph.json` returned 200 as `application/json`, an 8-node Qwen graph (UNETLoader, CLIPLoader, VAELoader, TextEncodeQwenImage21, EmptyLatentImage, KSampler, VAEDecode, SaveImage).
+- **Upload and run:** the graph was uploaded as `qwen-portrait` for `qwen21-uc`, then run with count 2 and random seeds (batch 5).
+  - Both jobs finished (66 s and 53 s, one shared cold start) with distinct seeds, 820447650 and 1127088148.
+  - Both image pages link the workflow and offer their own graph download. Job 8's stored graph carries its seed (820447650) in the KSampler.
+- **Invalid graph:** `broken-graph` (node 7's `VAEDecode` changed to `NoSuchNode`) uploaded fine, since node types are ComfyUI's to judge. Its run (batch 6) failed within about 20 s, showing ComfyUI's escaped text: `ComfyUI rejected workflow: {"error": {"type": "missing_node_type", "message": "Node 'NoSuchNode' not found. …", "details": "Node ID '#7'" …}}`.
+- **Delete:** `broken-graph` was deleted (200). Only `qwen-portrait` remains, and the failed job still shows its reason.
+- **Gap found and fixed:** the queue's Model column and the batch page printed "None" for workflow jobs, the sibling of the gallery-header fix. Both now say "custom workflow". The new test fails without the fix, and the suite now has 522 tests.
 
 ## Success Criteria
 
@@ -235,7 +249,7 @@ Delete: none.
 ## Verification
 
 ```bash
-cd /Users/sweet-home/Works/qwen21-uc-modal
+cd /Users/sweet-home/Works/artio
 uv run ruff check
 uv run pytest -q tests/test_library.py tests/test_custom_workflows.py tests/test_pages_hide_secrets.py -v
 uv run pytest -q

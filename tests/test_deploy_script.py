@@ -2,9 +2,9 @@
 
 Every test drives the real script through stub `docker`, `curl`, `systemd-run`, `flock` and `logger`
 executables that this file writes into a temporary `bin/` and puts first on PATH, so nothing here
-touches a real Docker daemon, network or systemd unit. `ATELIER_DEPLOY_DIR` points at a fresh temporary
+touches a real Docker daemon, network or systemd unit. `ARTIO_DEPLOY_DIR` points at a fresh temporary
 directory -- deploy.sh only reads that variable on the argv (non-forced-command) path; the forced
-command on the real server always uses its compiled-in /opt/atelier default, since `restrict` and
+command on the real server always uses its compiled-in /opt/artio default, since `restrict` and
 sshd's default `PermitUserEnvironment no` drop the client's environment before the script ever runs,
 and deploy.sh itself ignores the variable whenever SSH_ORIGINAL_COMMAND is set, as defense in depth.
 
@@ -23,7 +23,7 @@ from pathlib import Path
 import pytest
 
 DEPLOY_SH = Path(__file__).resolve().parent.parent / "deploy" / "deploy.sh"
-IMAGE = "ghcr.io/flowitup/atelier"
+IMAGE = "ghcr.io/flowitup/artio"
 
 NEW_SHA = "a" * 40
 PREV_SHA = "b" * 40
@@ -130,11 +130,11 @@ def main(argv):
                     print(ref)
             return 0
         if sub == "ls":
-            # A call scoped to the Atelier repository (the "$IMAGE" positional argument present) sees
-            # only Atelier's own tags; an unscoped call sees a realistic, other-repository-polluted
+            # A call scoped to the Artio repository (the "$IMAGE" positional argument present) sees
+            # only Artio's own tags; an unscoped call sees a realistic, other-repository-polluted
             # listing instead, so a missing repository filter is observable rather than harmless here.
             dangling = "--filter" in sub_rest and "dangling=true" in sub_rest
-            scoped = "ghcr.io/flowitup/atelier" in sub_rest
+            scoped = "ghcr.io/flowitup/artio" in sub_rest
             if dangling:
                 name = "dangling-ids"
             elif scoped:
@@ -144,8 +144,28 @@ def main(argv):
             print(read_text(name), end="")
             return 0
         if sub == "rm":
+            # Like the real daemon: an unknown reference is an error; a reference listed in
+            # rm-refused (an image still in use) stays and is an error; with the containerd image
+            # store (the server's), removing a tag also drops that image's digest references.
             append_line("rm-calls", " ".join(sub_rest))
-            return 0
+            images = read_json("images.json", {})
+            refused = read_text("rm-refused").split()
+            containerd = (state / "containerd-store").exists()
+            status = 0
+            for ref in sub_rest:
+                if ref in refused:
+                    print(f"Error response from daemon: conflict: unable to remove {ref}: in use", file=sys.stderr)
+                    status = 1
+                elif ref in images:
+                    info = images.pop(ref)
+                    if containerd:
+                        for digest_ref in info.get("repo_digests", []):
+                            images.pop(digest_ref, None)
+                else:
+                    print(f"Error response from daemon: No such image: {ref}", file=sys.stderr)
+                    status = 1
+            (state / "images.json").write_text(json.dumps(images))
+            return status
 
     if cmd == "compose":
         # Skip global compose flags (-f <file>, -p <name>) to find the actual verb.
@@ -153,7 +173,7 @@ def main(argv):
         while i < len(rest) and rest[i] in ("-f", "-p"):
             i += 2
         sub = rest[i] if i < len(rest) else ""
-        tag = os.environ.get("ATELIER_TAG", "")
+        tag = os.environ.get("ARTIO_TAG", "")
         if sub == "up":
             write_text("running-tag", tag)
             append_line("up-calls", tag)
@@ -252,8 +272,8 @@ STUB_NOOP_OK = "#!/usr/bin/env bash\nexit 0\n"
 
 # Mimics real logger's own stdin behaviour: it reads (and here, discards) stdin only when invoked with
 # no trailing message argument, exactly like the real util-linux logger. deploy.sh's log() always calls
-# `logger -t atelier-deploy -- "$*"` (a message argument, marked by "--"), which real logger never reads
-# stdin for; only up()'s and stop()'s `... | logger -t atelier-deploy` (no message argument) pipes real
+# `logger -t artio-deploy -- "$*"` (a message argument, marked by "--"), which real logger never reads
+# stdin for; only up()'s and stop()'s `... | logger -t artio-deploy` (no message argument) pipes real
 # output through it. log() runs inside prune()'s `while read` loop body, sharing that loop's stdin (the
 # awk pipe) -- a stub that unconditionally drained stdin here would silently steal the loop's next line.
 STUB_LOGGER = '''#!/usr/bin/env bash
@@ -299,7 +319,7 @@ class Harness:
         merged.pop("SSH_ORIGINAL_COMMAND", None)
         merged["PATH"] = f"{self.bin_dir}{os.pathsep}{merged.get('PATH', '')}"
         merged["STUB_STATE"] = str(self.state_dir)
-        merged["ATELIER_DEPLOY_DIR"] = str(deploy_dir_env or self.deploy_dir)
+        merged["ARTIO_DEPLOY_DIR"] = str(deploy_dir_env or self.deploy_dir)
         if ssh_command is not None:
             merged["SSH_ORIGINAL_COMMAND"] = ssh_command
         return merged
@@ -315,7 +335,7 @@ class Harness:
     ) -> subprocess.CompletedProcess:
         env = self.env(ssh_command=ssh_command, deploy_dir_env=deploy_dir_env)
         # Invoked through the symlink inside deploy_dir, exactly as production invokes deploy.sh from
-        # inside /opt/atelier: deploy.sh derives its own $DIR from $0's directory on the forced-command
+        # inside /opt/artio: deploy.sh derives its own $DIR from $0's directory on the forced-command
         # path, so the script under test must see itself at a path whose dirname is this temp directory.
         script = self.deploy_dir / "deploy.sh"
         if close_stdio:
@@ -361,6 +381,9 @@ class Harness:
         p = self.state_dir / "unhealthy-tags"
         existing = p.read_text() if p.exists() else ""
         p.write_text(existing + tag + "\n")
+
+    def image_exists(self, ref: str) -> bool:
+        return ref in self._images()
 
     def set_ls_tags(self, tags: list[str]) -> None:
         (self.state_dir / "ls-tags").write_text("\n".join(tags) + "\n")
@@ -410,10 +433,10 @@ class Harness:
 def harness(tmp_path) -> Harness:
     bin_dir = tmp_path / "bin"
     state_dir = tmp_path / "state"
-    deploy_dir = tmp_path / "opt-atelier"
+    deploy_dir = tmp_path / "opt-artio"
     for d in (bin_dir, state_dir, deploy_dir):
         d.mkdir()
-    # In production deploy.sh is installed inside /opt/atelier itself (server layout, docs/deployment
+    # In production deploy.sh is installed inside /opt/artio itself (server layout, docs/deployment
     # guide.md), and its `deploy)` branch re-invokes "$DIR/deploy.sh apply <sha>" through systemd-run.
     # Mirror that layout here so the self-re-exec resolves the same way it does on the server.
     (deploy_dir / "deploy.sh").symlink_to(DEPLOY_SH)
@@ -700,10 +723,10 @@ def test_lock_contention_refuses_and_never_starts(harness):
     assert harness.up_calls() == []
 
 
-def test_prune_removes_only_the_oldest_atelier_tags_and_sweeps_dangling(harness):
+def test_prune_removes_only_the_oldest_artio_tags_and_sweeps_dangling(harness):
     """A realistic, newest-first tag list: KEEP=3 protects current, previous and the single newest
-    other Atelier tag, so among three older candidates only the two oldest are removed, each only by
-    its own Atelier-repository digest reference -- a Folio digest recorded alongside one is untouched.
+    other Artio tag, so among three older candidates only the two oldest are removed, each only by
+    its own Artio-repository digest reference -- a Folio digest recorded alongside one is untouched.
     The dangling sweep runs independently and only ever lists this repository's own images."""
     o1, o2, o3 = "1" * 40, "2" * 40, "3" * 40  # o1 is newest-of-the-rest, o3 is oldest
     harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2, o3])
@@ -724,13 +747,84 @@ def test_prune_removes_only_the_oldest_atelier_tags_and_sweeps_dangling(harness)
     assert any(call == "dangling0000" for call in removed)  # the dangling sweep also ran
 
 
+def _old_images_with_digests(harness, tags, *, extra_digest: str | None = None) -> None:
+    """Registers each tag with its own Artio digest reference (plus an optional foreign one), all
+    as existing images, the way a real host lists them after earlier deploys."""
+    for tag in tags:
+        own = f"{IMAGE}@sha256:{tag[0] * 64}"
+        harness.set_repo_digests(f"{IMAGE}:{tag}", [own] + ([extra_digest] if extra_digest else []))
+        harness.mark_tag_exists(own)
+    if extra_digest:
+        harness.mark_tag_exists(extra_digest)
+
+
+def test_prune_logs_each_removal_when_the_tag_takes_its_digest_with_it(harness):
+    """On the containerd image store (the server's), removing an image's last tag also removes its
+    digest reference. Prune must not then remove that reference a second time: no daemon error reaches
+    the deploy's output, and each removal is logged."""
+    (harness.state_dir / "containerd-store").touch()
+    o1, o2 = "1" * 40, "2" * 40
+    harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2])
+    _old_images_with_digests(harness, (o1, o2))
+    harness.write_tag("current-tag", PREV_SHA)
+    harness.set_image(f"{IMAGE}@{DIGEST}", revision=NEW_SHA)
+
+    result = harness.run(ssh_command=f"deploy {NEW_SHA} {DIGEST}", stdin=f"{TOKEN}\n{USER}\n")
+
+    assert result.returncode == 0, result.stderr
+    assert "No such image" not in result.stderr
+    assert f"pruned {o2}" in result.stderr.splitlines()
+    assert not harness.image_exists(f"{IMAGE}:{o2}")
+    assert not harness.image_exists(f"{IMAGE}@sha256:{'2' * 64}")
+    assert harness.image_exists(f"{IMAGE}:{o1}")
+
+
+def test_prune_removes_digest_references_the_classic_store_leaves_behind(harness):
+    """On the classic image store, removing a tag leaves the image's digest reference, which would
+    keep its layers on the shared disk. Prune removes Artio's own leftover reference too, and never
+    another repository's."""
+    o1, o2 = "1" * 40, "2" * 40
+    folio_digest = f"europe-west1-docker.pkg.dev/x/folio@sha256:{'f' * 64}"
+    harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2])
+    _old_images_with_digests(harness, (o1, o2), extra_digest=folio_digest)
+    harness.write_tag("current-tag", PREV_SHA)
+    harness.set_image(f"{IMAGE}@{DIGEST}", revision=NEW_SHA)
+
+    result = harness.run(ssh_command=f"deploy {NEW_SHA} {DIGEST}", stdin=f"{TOKEN}\n{USER}\n")
+
+    assert result.returncode == 0, result.stderr
+    assert not harness.image_exists(f"{IMAGE}:{o2}")
+    assert not harness.image_exists(f"{IMAGE}@sha256:{'2' * 64}")
+    assert harness.image_exists(folio_digest)
+    assert harness.image_exists(f"{IMAGE}:{o1}") and harness.image_exists(f"{IMAGE}@sha256:{'1' * 64}")
+    assert f"pruned {o2}" in result.stderr.splitlines()
+
+
+def test_prune_reports_an_image_it_could_not_remove_without_failing_the_deploy(harness):
+    """An old image the daemon refuses to remove (for example, still used by a stopped container)
+    is logged as not pruned, and the deploy that already succeeded still reports success."""
+    o1, o2 = "1" * 40, "2" * 40
+    harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2])
+    _old_images_with_digests(harness, (o1, o2))
+    (harness.state_dir / "rm-refused").write_text(f"{IMAGE}:{o2}\n")
+    harness.write_tag("current-tag", PREV_SHA)
+    harness.set_image(f"{IMAGE}@{DIGEST}", revision=NEW_SHA)
+
+    result = harness.run(ssh_command=f"deploy {NEW_SHA} {DIGEST}", stdin=f"{TOKEN}\n{USER}\n")
+
+    assert result.returncode == 0, result.stderr
+    assert f"could not prune {o2}" in result.stderr.splitlines()
+    assert f"pruned {o2}" not in result.stderr.splitlines()
+    assert harness.image_exists(f"{IMAGE}:{o2}")
+
+
 def test_prune_is_scoped_to_its_own_repository(harness):
     """`docker image ls` must be called with the repository filter, not globally. This test's stub
-    docker only returns Atelier's own tags when that filter is present on the argv, and a realistic,
+    docker only returns Artio's own tags when that filter is present on the argv, and a realistic,
     other-repository-polluted listing otherwise, so a missing filter is observable: two unrelated
     tags would consume the "newest other image" slot that KEEP=3 reserves, wrongly pruning it."""
     o1, o2 = "1" * 40, "2" * 40
-    harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2])  # correctly scoped: only Atelier's own tags
+    harness.set_ls_tags([NEW_SHA, o1, PREV_SHA, o2])  # correctly scoped: only Artio's own tags
     harness.set_ls_tags_unfiltered(["f" * 40, "e" * 40, NEW_SHA, o1, PREV_SHA, o2])
     harness.write_tag("current-tag", PREV_SHA)
     harness.set_image(f"{IMAGE}@{DIGEST}", revision=NEW_SHA)
@@ -752,8 +846,8 @@ def test_systemd_run_arguments_are_correct(harness):
     calls = harness.systemd_run_calls()
     assert len(calls) == 1
     for expected in (
-        "--unit=atelier-apply", "-p Type=oneshot", "--wait", "--collect", "--pipe", "--quiet",
-        "--setenv=ATELIER_DETACHED=1", f"--setenv=ATELIER_DEPLOY_DIR={harness.deploy_dir} ",
+        "--unit=artio-apply", "-p Type=oneshot", "--wait", "--collect", "--pipe", "--quiet",
+        "--setenv=ARTIO_DETACHED=1", f"--setenv=ARTIO_DEPLOY_DIR={harness.deploy_dir} ",
     ):
         assert expected in calls[0], calls[0]
 

@@ -9,8 +9,8 @@ import time
 
 import pytest
 
-from atelier import jobs, storage
-from atelier.registry import InvalidParams, UnknownModel
+from artio import jobs, storage
+from artio.registry import InvalidParams, UnknownModel
 
 
 def _make_request(**overrides) -> jobs.BatchRequest:

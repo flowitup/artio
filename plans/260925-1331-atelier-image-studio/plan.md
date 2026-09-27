@@ -1,7 +1,7 @@
 ---
 title: "Atelier — private multi-model image studio on Hetzner"
-description: "Private FastAPI + HTMX image studio on folio-prod-1 that drives Modal GPU backends, with Access auth, async jobs, GPU controls, nightly backups and a Claude plugin."
-status: pending
+description: "Private FastAPI + HTMX image studio on folio-prod-1 that drives Modal GPU backends, with Access auth, async jobs, GPU controls and a Claude plugin."
+status: completed
 priority: P2
 effort: 68h
 branch: main
@@ -17,7 +17,7 @@ created: 2026-09-25
 
 <!-- Updated: Validation Session 1 - answers applied -->
 
-Atelier is the owner's private image studio at `atelier.flowitup.com`: one Python service (FastAPI, HTMX, SQLite) in a confined container on `folio-prod-1`. The owner picks a model, runs single or batch generations on Modal GPU backends, follows the queue, and browses, searches, tags, remixes and deletes results. They can control GPU warm-up and stop, run uploaded ComfyUI workflows, and drive Atelier from Claude through a plugin. Pushing to `main` deploys a digest-pinned image automatically, and data is backed up nightly to R2. Eight sequential phases deliver the accepted contract as amended. The red-team fixes, the owner's decisions D1–D3 and the Validation Session 1 answers are applied. Every step that touches production, Cloudflare, R2, GitHub or Modal is marked **[OWNER-GATED]** and waits for the owner's explicit go-ahead.
+Atelier is the owner's private image studio at `atelier.flowitup.com`: one Python service (FastAPI, HTMX, SQLite) in a confined container on `folio-prod-1`. The owner picks a model, runs single or batch generations on Modal GPU backends, follows the queue, and browses, searches, tags, remixes and deletes results. They can control GPU warm-up and stop, run uploaded ComfyUI workflows, and drive Atelier from Claude through a plugin. Pushing to `main` deploys a digest-pinned image automatically. There are no backups: the owner dropped them on 2026-09-27, so the data volume holds the only copy. Eight phases were planned; seven remain after that decision. The red-team fixes, the owner's decisions D1–D3 and the Validation Session 1 answers are applied. Every step that touches production, Cloudflare, R2, GitHub or Modal is marked **[OWNER-GATED]** and waits for the owner's explicit go-ahead.
 
 ## Phases
 
@@ -29,8 +29,8 @@ Atelier is the owner's private image studio at `atelier.flowitup.com`: one Pytho
 | 2 | [Engine](./phase-02-engine.md) | 12h | 1 |
 | 3 | [Web UI & Access auth](./phase-03-web-ui-and-access-auth.md) | 11h | 2 |
 | 4 | [Container, CI/CD & first production rollout](./phase-04-container-ci-cd-and-rollout.md) | 12h | 3 |
-| 5 | [Backups & restore](./phase-05-backups-and-restore.md) | 7h | 4 |
-| 6 | [GPU status, warm-up & stop](./phase-06-gpu-status-warm-stop.md) | 8h | 5 |
+| 5 | ~~[Backups & restore](./phase-05-backups-and-restore.md)~~ (dropped by the owner on 2026-09-27: Atelier has no backups) | — | — |
+| 6 | [GPU status, warm-up & stop](./phase-06-gpu-status-warm-stop.md) | 8h | 4 |
 | 7 | [Prompt library & custom workflows](./phase-07-prompt-library-and-workflows.md) | 6h | 6 |
 | 8 | [JSON API, Claude plugin & final acceptance](./phase-08-api-plugin-and-acceptance.md) | 9h | 7 |
 
@@ -77,10 +77,9 @@ Phases run strictly in order because they share `main.py`, `jobs.py`, `worker.py
 - **GPU control.**
   - Status is computed on read from 10 s and 60 s caches. Pings run only while a warm window is open, and there is no `min_containers`.
   - "Warm" is shown only after a successful ping. A failed ping marks the backend unhealthy and feeds the circuit breaker, which recycles a backend whose ComfyUI died.
-- **Data and backups.**
+- **Data.**
   - A 50 GB Hetzner Volume with a sentinel file, a 40 GB image cap and a 5 GB free-space floor (validated defaults).
-  - restic runs throttled from a digest-pinned image, to R2 without bucket locks. The weekly verify lists recursively and checks the live DB.
-  - The restore runbook has two paths, plus a purge procedure.
+  - **No backups** (owner decision, 2026-09-27). The volume holds the only copy of the images and the database. The planned restic-to-R2 backups, weekly verify, restore runbook and purge procedure were dropped with phase 5.
 - **Presets and token (validated).**
   - Qwen-Image 2.1 UC offers 9:16 1088×1920 (default), 16:9 1920×1088 and 1:1 1328×1328, plus custom sizes in multiples of 16.
   - The Access service token lasts 1 year, with its expiry recorded and a calendar reminder set, and is revoked immediately on a leak.
@@ -105,7 +104,7 @@ Phases run strictly in order because they share `main.py`, `jobs.py`, `worker.py
 | 8 | Presets, stars, tags and search | 7, 8 |
 | 9 | Custom workflows | 7, 8 |
 | 10 | Claude plugin with service-token auth | 3 (route authorization), 8 |
-| 11 | Backups, weekly verify, restore test and UI status | 5, 8 |
+| 11 | ~~Backups, weekly verify, restore test and UI status~~ | Dropped by the owner on 2026-09-27 |
 | 12 | Disk guard and usage | 2, 3, 4 (volume), 8 |
 | 13 | Deploy, health check, neighbours unaffected, `modal deploy` | 4, 8 |
 | 14 | No credential in the repo, image or pages | 1, 3, 4, 8 |
@@ -128,7 +127,7 @@ From phase 4 onwards, every push to `main` deploys to production and needs the o
   - Create the Modal runtime and CI tokens, and set the workspace spend limit on the Usage & Billing page, plus usage alerts if offered. Revoke the proxy-auth tokens made unused by the endpoint removal (D2).
   - Create and attach the 50 GB Volume in Folio's Hetzner project. Create the GitHub repo, the `production` environment and its secrets, and grant the repo read access to the GHCR package if the first pull is denied.
   - Approve the volume mount, `/opt/atelier`, `.env`, the egress unit, the restricted key, tunnel sub-steps (a)–(g), the live checks and the `deploy-modal` run.
-- **Phase 5:** create the R2 bucket (no lock) and a bucket-scoped token, and store the restic password in the password manager before `restic init`. Approve `backup.env`, the units and timers, the first backup and verify, the restore rehearsal and the failure display.
+- **Phase 5:** none; the phase was dropped on 2026-09-27.
 - **Phase 6:** approve the live GPU checks (about $1), including `deploy.sh stop` and `modal app stop --yes`.
 - **Phase 7:** approve the live workflow run (about $0.10).
 - **Phase 8:** install the plugin (desktop app, or Claude Code through the local marketplace) with the service token, and approve the final acceptance run (about $1.50) and the temporary cap change.

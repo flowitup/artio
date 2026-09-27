@@ -1,7 +1,7 @@
 ---
 phase: 4
 title: "Container, CI/CD & first production rollout"
-status: pending
+status: completed
 priority: P1
 effort: "12h"
 dependencies: [3]
@@ -399,17 +399,17 @@ The ingress rule, saved as `deploy/cloudflared-ingress-rule.yml` and inserted im
 <!-- Updated: Red Team 2026-09-25 - F9 supply chain -->
 
 Create:
-- `/Users/sweet-home/Works/qwen21-uc-modal/Dockerfile`
-- `/Users/sweet-home/Works/qwen21-uc-modal/.dockerignore`
-- `/Users/sweet-home/Works/qwen21-uc-modal/compose.yaml`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/deploy.sh`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/cloudflared-ingress-rule.yml`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/systemd/atelier-egress.service`
-- `/Users/sweet-home/Works/qwen21-uc-modal/.github/workflows/ci.yml`
-- `/Users/sweet-home/Works/qwen21-uc-modal/.github/workflows/deploy.yml`
-- `/Users/sweet-home/Works/qwen21-uc-modal/.github/workflows/deploy-modal.yml`
-- `/Users/sweet-home/Works/qwen21-uc-modal/docs/deployment-guide.md`
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/test_deploy_script.py`: hermetic. It writes stub `docker`, `curl`, `systemd-run`, `flock` and `logger` executables into a temporary `bin/`, puts them first on `PATH`, points `ATELIER_DEPLOY_DIR` at a temporary directory, and runs `bash deploy/deploy.sh`.
+- `/Users/sweet-home/Works/artio/Dockerfile`
+- `/Users/sweet-home/Works/artio/.dockerignore`
+- `/Users/sweet-home/Works/artio/compose.yaml`
+- `/Users/sweet-home/Works/artio/deploy/deploy.sh`
+- `/Users/sweet-home/Works/artio/deploy/cloudflared-ingress-rule.yml`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-egress.service`
+- `/Users/sweet-home/Works/artio/.github/workflows/ci.yml`
+- `/Users/sweet-home/Works/artio/.github/workflows/deploy.yml`
+- `/Users/sweet-home/Works/artio/.github/workflows/deploy-modal.yml`
+- `/Users/sweet-home/Works/artio/docs/deployment-guide.md`
+- `/Users/sweet-home/Works/artio/tests/test_deploy_script.py`: hermetic. It writes stub `docker`, `curl`, `systemd-run`, `flock` and `logger` executables into a temporary `bin/`, puts them first on `PATH`, points `ATELIER_DEPLOY_DIR` at a temporary directory, and runs `bash deploy/deploy.sh`.
 
 Modify (LearnFlow repository, D1, **[OWNER-GATED]** push):
 - `/Users/sweet-home/Works/learnflow/.github/workflows/deploy.yml`:
@@ -544,7 +544,7 @@ Delete: none.
     - Record the host key with `ssh-keyscan -t ed25519 <host>`, and check its fingerprint against `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` run on the server.
     - Prove the boundary: `ssh -i <key> -o IdentitiesOnly=yes root@<host> id` must print `rejected: unexpected command` and exit 2.
 17. **[OWNER-GATED] GitHub.**
-    - Run `gh repo create flowitup/atelier --private --source /Users/sweet-home/Works/qwen21-uc-modal --remote origin`.
+    - Run `gh repo create flowitup/atelier --private --source /Users/sweet-home/Works/artio --remote origin`.
     - In the repo's Settings → Environments, create `production` with deployment branches limited to `main`.
     - Set the environment secrets `HETZNER_HOST`, `HETZNER_KNOWN_HOSTS`, `ATELIER_DEPLOY_SSH_KEY` (read from the file), `MODAL_TOKEN_ID` and `MODAL_TOKEN_SECRET` (the `atelier-ci` token). Use `gh secret set <NAME> --env production --repo flowitup/atelier` with the value typed or piped from a file, never passed as a command-line argument. Create no repository-level secrets.
 18. **[OWNER-GATED] First deploy.**
@@ -609,13 +609,13 @@ Delete: none.
 - [x] `docs/deployment-guide.md`: setup, key audit, `.env` table, the `deploy.sh` subcommands, egress, tunnel runbook
 - [x] [OWNER-GATED] Root-key and Tailscale audit recorded; any other unrestricted CI key surfaced to the owner
 - [x] [OWNER-GATED] LearnFlow key restricted to rrsync; LearnFlow deploy green; shell refused
-- [ ] [OWNER-GATED] Access app, service token (1 year, expiry recorded, rotation reminder set), AUD, SameSite=Lax
+- [ ] [OWNER-GATED] Access app, service token (1 year, expiry recorded, rotation reminder set), AUD, SameSite=Lax (all done except the owner's calendar reminder to rotate the token by about 2027-09-12)
 - [x] [OWNER-GATED] Modal runtime and CI tokens, spend limit (plus alerts if offered), now-unused proxy-auth tokens revoked
 - [x] [OWNER-GATED] Hetzner Volume created, attached, mounted by UUID with `nofail`, sentinel present
-- [ ] [OWNER-GATED] `/opt/atelier` files, `.env`, subnet check, egress unit, restricted key, host key pinned
-- [ ] [OWNER-GATED] GitHub repo, `production` environment and its secrets; first deploy green
-- [ ] [OWNER-GATED] Tunnel cutover sub-steps (a)–(g), each passed; DNS route
-- [ ] [OWNER-GATED] Cold-start job, restart-mid-job check, `deploy-modal` dispatch
+- [x] [OWNER-GATED] `/opt/atelier` files, `.env`, subnet check, egress unit, restricted key, host key pinned
+- [x] [OWNER-GATED] GitHub repo, `production` environment and its secrets; first deploy green
+- [x] [OWNER-GATED] Tunnel cutover sub-steps (a)–(g), each passed; DNS route
+- [x] [OWNER-GATED] Cold-start job, restart-mid-job check, `deploy-modal` dispatch
 
 ## Success Criteria
 
@@ -646,7 +646,7 @@ Delete: none.
 
 ```bash
 # Local image checks (Docker Desktop)
-cd /Users/sweet-home/Works/qwen21-uc-modal
+cd /Users/sweet-home/Works/artio
 docker build -t atelier:local --build-arg ATELIER_VERSION=local --label org.opencontainers.image.revision=local .
 D=$(mktemp -d); docker run -d --name atelier-local --read-only --tmpfs /tmp --cap-drop ALL \
   --security-opt no-new-privileges:true -p 127.0.0.1:8091:8000 -v "$D:/data" \
@@ -743,9 +743,53 @@ All secrets were copied by the owner straight into their password manager. None 
   - The old `JZx+` line was then removed (backup `authorized_keys.bak-20260926T221116Z`). A login with it is refused, and the `folio-prod` alias still works.
   - The LearnFlow private-key file was deleted from the laptop.
   - Editing `.env` over SSH failed: the server has no terminfo for Ghostty (`xterm-ghostty`). The fix is `TERM=xterm-256color ssh -t folio-prod nano /opt/atelier/.env`.
+- **`.env` completed (2026-09-27, about 00:30 Paris time):**
+  - The owner couldn't find the plugin Client ID or the `atelier-runtime` secret. The Client ID isn't secret: Claude read it from the Cloudflare dashboard and wrote it into `.env`.
+  - In the owner's Chrome, at their request, Claude deleted the unused `atelier-runtime` Modal token and created `atelier-runtime-2`. Claude stopped looking at the tab before the secret appeared.
+  - The owner saved the new token through a helper script that reads it at hidden prompts and rewrites only its two `.env` lines over SSH.
+  - Check: all three lines have the right shape, `.env` is still 0600 root, and `docker compose config` resolves.
+  - The service token's exact expiry, read from the dashboard, is 2027-09-26 17:47 Paris time.
+- **Step 18, first deploy (2026-09-27 00:30 Paris time):**
+  - Run 36276417182 was green: test, secret scan, build, then deploy. The server logged `deployed 458f387…` about 17 s after the job started.
+  - The pull with the job's own `GITHUB_TOKEN` needed no package setting, and the size check before the pull ran through `docker manifest inspect`.
+  - `deploy.sh status`: the container was healthy, and `/healthz` reported version `458f387…` with loops `ok`.
+  - Posture: uid 10001, read-only, `CapDrop=[ALL]`, `no-new-privileges`, `127.0.0.1:8090` only, `/mnt/atelier-data`→`/data`, 768 MiB.
+  - Without a valid JWT the origin returned 403, both with no header and with a forged one.
+  - From the container:
+    - metadata and the host's tailnet address were blocked (control checks from the host reach both);
+    - the Modal API worked with `atelier-runtime-2`;
+    - the Access JWKS returned 200.
+  - The Folio containers were untouched, and folio returned 200, learn 302 and cdn 403 as its baseline.
+  - The laptop's copies of the deploy key and the pinned host key were deleted.
+- **Second deploy:** run 36276612738 was green; `current=a119426…` and `previous=458f387…`, so the rollback target is kept on the real host.
+- **Step 19, tunnel cutover (2026-09-27 00:35–00:38 Paris time), every sub-step passed:**
+  - **(a)** Backup `config.yml.bak-20260926T223546Z`, a diff of exactly two added lines, and `ingress validate` OK; each hostname hit its intended rule. `route dns` added the CNAME using the server's `origincert`.
+  - **(b)** Baselines on three samples: folio 200, cdn 403 (its storage backend's `AccessDenied`), learn 302 to Access.
+  - **(c)** The replica (`--metrics 127.0.0.1:20242`) registered 4 connections within about 4 s, and `/ready` returned 200.
+  - **(d)** The live config was replaced in place (0644 root kept), and the restart re-registered within about 2 s; `/ready` returned 200.
+  - **(e)** The neighbours matched their baselines, and `atelier.flowitup.com` returned a 302 to Access.
+  - **(f)** The replica was stopped: one cloudflared process left, and its metrics port closed.
+  - **(g)** The same results as (e).
+  - The `.new` file and the timestamp marker were removed.
+- **Step 20, live acceptance (about $0.15 of GPU, covered by Modal's free credits):**
+  - The owner logged in through Access.
+  - Cold backend (`modal container list` returned `[]`): one 9:16 image went queued → running → done in 62 s, with no 524.
+  - Two more images: `deploy.sh stop` (1 s, maintenance on) then `deploy.sh start` (6 s, healthy, maintenance cleared) ran while both rendered. Both finished (21 s and 33 s), and the gallery shows all three.
+  - The files are on the volume and owned by 10001.
+  - Known issue for phase 7: the gallery shows "Next" whenever a page has images, even when no next page exists.
+- **Step 21, Modal redeploy from CI:**
+  - The first dispatch failed with "Token ID is malformed": the `atelier-ci` values the owner had pasted into GitHub weren't a real token, and its secret was lost.
+  - Claude deleted `atelier-ci` (the owner said yes) and created `atelier-ci-2`. The owner saved it through a hidden-prompt `gh secret set` helper.
+  - The re-run (36278211775) was green, and `modal app list` shows `qwen21-uc` deployed.
+- **Prune fix (after the fourth deploy):**
+  - The first real prune removed the oldest image correctly, but it logged no `pruned` line and put "Error response from daemon: No such image" into the CI log.
+  - Cause: the server's containerd image store drops an image's digest references together with its last tag, so the second removal in the same `docker image rm` call failed.
+  - Fix: `prune` now removes the tag first, then only digest references that still exist (the classic store keeps them). It logs `pruned` or `could not prune` according to whether the tag is really gone.
+  - Three hermetic tests model both stores and a refused removal, and the new containerd and refused-removal tests fail against the old script. There are 43 deploy-script tests, and the harness catches 24 of 24 mutants.
+  - The server copy was replaced after a backup (`deploy.sh.bak-20260926T233038Z`), with matching checksums.
+- **Owner decisions:** auto-renew for `flowitup.com` stays **off**; it expires 2027-04-07 and is renewed by hand. The credential inventory is in `docs/deployment-guide.md` ("Where each credential lives").
 - **Still to do:**
-  - The owner fills in the three `.env` credentials.
-  - Then steps 18–21.
+  - Remaining owner item: the calendar reminder to rotate the Access service token two weeks before 2027-09-26.
   - The owner's calendar reminder to rotate the service token two weeks before 2027-09-26.
   - Follow-ups outside this plan: rotate `hetzner-deploy` on `dev-deploy`, and harden Folio's CI key.
 

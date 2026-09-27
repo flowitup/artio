@@ -1,8 +1,8 @@
-name: atelier
+name: artio
 services:
-  atelier:
-    image: ghcr.io/flowitup/atelier:${ATELIER_TAG:?required}   # a local tag that deploy.sh bound to a verified digest
-    container_name: atelier
+  artio:
+    image: ghcr.io/flowitup/artio:${ARTIO_TAG:?required}   # a local tag that deploy.sh bound to a verified digest
+    container_name: artio
     pull_policy: never                      # images arrive only through deploy.sh
     restart: unless-stopped
     user: "10001:10001"
@@ -11,14 +11,14 @@ services:
     cap_drop: [ALL]
     security_opt: ["no-new-privileges:true"]
     ports: ["127.0.0.1:8090:8000"]
-    volumes: ["/mnt/atelier-data:/data"]
-    env_file: [/opt/atelier/.env]
+    volumes: ["/mnt/artio-data:/data"]
+    env_file: [/opt/artio/.env]
     environment:
-      ATELIER_ENV: production
-      ATELIER_DATA_DIR: /data
-      ATELIER_CF_AUD: ${ATELIER_CF_AUD:?required}
-      ATELIER_OWNER_EMAIL: ${ATELIER_OWNER_EMAIL:?required}
-      ATELIER_PLUGIN_CLIENT_ID: ${ATELIER_PLUGIN_CLIENT_ID:?required}
+      ARTIO_ENV: production
+      ARTIO_DATA_DIR: /data
+      ARTIO_CF_AUD: ${ARTIO_CF_AUD:?required}
+      ARTIO_OWNER_EMAIL: ${ARTIO_OWNER_EMAIL:?required}
+      ARTIO_PLUGIN_CLIENT_ID: ${ARTIO_PLUGIN_CLIENT_ID:?required}
       MODAL_TOKEN_ID: ${MODAL_TOKEN_ID:?required}
       MODAL_TOKEN_SECRET: ${MODAL_TOKEN_SECRET:?required}
     mem_limit: 768m
@@ -30,9 +30,9 @@ services:
       retries: 3
       start_period: 20s
     logging: {driver: json-file, options: {max-size: "10m", max-file: "3"}}
-    networks: [atelier]
+    networks: [artio]
 networks:
-  atelier:
+  artio:
     ipam:
       config:
         - subnet: 172.30.90.0/24            # fixed, so the egress rules can name it; checked for collisions first

@@ -2,7 +2,7 @@
 
 ## Executed Phase
 - Phase: phase-04-container-ci-cd-and-rollout.md, Part A only (repository work, steps 1-4, 6-7, no commit)
-- Plan: /Users/sweet-home/Works/qwen21-uc-modal/plans/260925-1331-atelier-image-studio
+- Plan: /Users/sweet-home/Works/artio/plans/260925-1331-atelier-image-studio
 - Status: completed (Part A). Part B (owner-gated rollout) and step 5 (local container build) are out of scope / pending, as instructed.
 
 ## Files created

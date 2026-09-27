@@ -19,9 +19,9 @@ from fastapi.routing import iter_route_contexts
 from starlette.requests import Request as StarletteRequest
 from starlette.testclient import TestClient
 
-from atelier.auth import AccessVerifier
-from atelier.config import VOLUME_SENTINEL_NAME, ConfigError
-from atelier.main import create_app
+from artio.auth import AccessVerifier
+from artio.config import VOLUME_SENTINEL_NAME, ConfigError
+from artio.main import create_app
 from tests.conftest import AUD, OWNER_EMAIL, PLUGIN_CLIENT_ID, PUBLIC_ORIGIN, TEAM_DOMAIN, mint
 
 
@@ -156,7 +156,7 @@ def test_owner_post_with_neither_origin_nor_referer_is_refused(app_client, acces
         pytest.param({"Origin": ""}, 403, id="origin-empty"),
         pytest.param({"Origin": f"{PUBLIC_ORIGIN}/"}, 403, id="origin-trailing-slash"),
         pytest.param({"Referer": f"{PUBLIC_ORIGIN}.evil.com/"}, 403, id="referer-subdomain-confusion-no-slash-boundary"),
-        pytest.param({"Referer": "http://atelier.test@evil.com/"}, 403, id="referer-userinfo-confusion"),
+        pytest.param({"Referer": "http://artio.test@evil.com/"}, 403, id="referer-userinfo-confusion"),
         pytest.param({"Referer": f"{PUBLIC_ORIGIN}/some/page"}, 200, id="referer-alone-is-accepted"),
     ],
 )
@@ -185,10 +185,14 @@ def _fill(path: str, route_ids: dict[str, int]) -> str:
 
 
 def test_service_identity_is_refused_outside_the_api_allowlist(app_client, service_headers, route_ids):
+    """Every HTML GET route stays owner-only for the service identity. /api/v1 routes are deliberately
+    excluded from this crawl: those nine endpoints are exactly what SERVICE_ROUTES allows the service
+    identity to call (proven instead by test_api_v1.py's own allowlist tests), so a 403 here would be
+    the bug, not the fix."""
     visited = 0
     for raw_path in _get_paths(app_client.app):
         path = _fill(raw_path, route_ids)
-        if path == "/healthz":
+        if path == "/healthz" or path.startswith("/api/v1"):
             continue
         response = app_client.get(path, headers=service_headers)
         assert response.status_code == 403, f"service identity was allowed on GET {path}"
@@ -241,12 +245,12 @@ def test_create_app_raises_config_error_for_dev_identity_in_production(monkeypat
     # check would make this test actually observe create_app() succeed, not "raise for some other,
     # unrelated missing-config reason" the way the original bare-minimum env setup could.
     (tmp_path / VOLUME_SENTINEL_NAME).touch()
-    monkeypatch.setenv("ATELIER_ENV", "production")
-    monkeypatch.setenv("ATELIER_DEV_IDENTITY", "owner")
-    monkeypatch.setenv("ATELIER_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("ATELIER_CF_AUD", "prod-aud")
-    monkeypatch.setenv("ATELIER_OWNER_EMAIL", "owner@example.com")
-    monkeypatch.setenv("ATELIER_PLUGIN_CLIENT_ID", "prod-plugin-client-id")
+    monkeypatch.setenv("ARTIO_ENV", "production")
+    monkeypatch.setenv("ARTIO_DEV_IDENTITY", "owner")
+    monkeypatch.setenv("ARTIO_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ARTIO_CF_AUD", "prod-aud")
+    monkeypatch.setenv("ARTIO_OWNER_EMAIL", "owner@example.com")
+    monkeypatch.setenv("ARTIO_PLUGIN_CLIENT_ID", "prod-plugin-client-id")
     with pytest.raises(ConfigError, match="development"):
         create_app()
 
@@ -265,7 +269,7 @@ def test_dev_identity_bypasses_jwt_verification_in_development(registry, fake_ga
 
 
 def test_dev_identity_is_ignored_outside_development_even_when_set_directly(registry, fake_gateway, settings):
-    """load_settings() already refuses dev_identity outside ATELIER_ENV=development, but a Settings
+    """load_settings() already refuses dev_identity outside ARTIO_ENV=development, but a Settings
     built by hand (bypassing load_settings, as here) can still carry both -- identify() itself must
     also require env == "development", not trust that Settings was necessarily built the normal way."""
     bad_settings = dataclasses.replace(
@@ -282,11 +286,11 @@ def test_dev_identity_is_ignored_outside_development_even_when_set_directly(regi
 
 def test_create_app_refuses_start_worker_false_outside_test_and_development(monkeypatch, tmp_path):
     (tmp_path / VOLUME_SENTINEL_NAME).touch()
-    monkeypatch.setenv("ATELIER_ENV", "production")
-    monkeypatch.setenv("ATELIER_DATA_DIR", str(tmp_path))
-    monkeypatch.setenv("ATELIER_CF_AUD", "prod-aud")
-    monkeypatch.setenv("ATELIER_OWNER_EMAIL", "owner@example.com")
-    monkeypatch.setenv("ATELIER_PLUGIN_CLIENT_ID", "prod-plugin-client-id")
+    monkeypatch.setenv("ARTIO_ENV", "production")
+    monkeypatch.setenv("ARTIO_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("ARTIO_CF_AUD", "prod-aud")
+    monkeypatch.setenv("ARTIO_OWNER_EMAIL", "owner@example.com")
+    monkeypatch.setenv("ARTIO_PLUGIN_CLIENT_ID", "prod-plugin-client-id")
     with pytest.raises(ConfigError, match="start_worker"):
         create_app(start_worker=False)
 

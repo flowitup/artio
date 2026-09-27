@@ -1,15 +1,18 @@
-"""Gallery: model picker, per-model filter, batch grouping and the batch detail page."""
+"""Gallery: model picker, per-model filter, batch grouping, pagination and the batch detail page."""
 
 from __future__ import annotations
 
 import asyncio
+import html
+import re
 
 import pytest
 
-from atelier import jobs
-from atelier.registry import Backend, Model, ParamSchema, Registry, SizePreset
-from atelier.worker import Worker
-from atelier.workflows import qwen_image_21
+from artio import jobs
+from artio.library import PAGE_SIZE
+from artio.registry import Backend, Model, ParamSchema, Registry, SizePreset
+from artio.worker import Worker
+from artio.workflows import qwen_image_21
 
 
 @pytest.fixture
@@ -120,3 +123,96 @@ def test_batch_page_shows_every_job_regardless_of_status(
 def test_unknown_batch_id_answers_404(app_client, owner_headers):
     response = app_client.get("/batches/999999", headers=owner_headers)
     assert response.status_code == 404
+
+
+# -- has_next pagination ------------------------------------------------------------------------------
+#
+# Regression coverage for a known issue: the template used to show "Next" whenever the current page had
+# any images at all ({% if groups %}), even on the last page. gallery_page now fetches one row past the
+# page size to compute a real has_next, so these prove the fix (they fail under the old `if groups` rule).
+
+
+def _seed_images(conn, count: int, *, prompt: str = "seeded") -> list[int]:
+    """Inserts `count` done, single-image batches directly (bypassing the job engine and Modal): fast
+    enough to build pages of 48+ rows for pagination tests, which don't need real files or renders."""
+    ids = []
+    for _ in range(count):
+        conn.execute(
+            "INSERT INTO batches (created_at, model_id, kind, base_params_json, count) "
+            "VALUES (0, 'm', 'generate', '{}', 1)"
+        )
+        batch_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute(
+            "INSERT INTO jobs (batch_id, model_id, backend_id, kind, params_json, graph_json, status, created_at) "
+            "VALUES (?, 'm', 'qwen21-uc', 'generate', '{}', '{}', 'done', 0)",
+            (batch_id,),
+        )
+        job_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+        conn.execute(
+            "INSERT INTO images (job_id, model_id, file_png, file_thumb, width, height, bytes, sha256, "
+            "prompt, created_at) VALUES (?, 'm', 'a.png', 'a.webp', 8, 8, 1, 'sha', ?, 0)",
+            (job_id, prompt),
+        )
+        ids.append(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
+    conn.commit()
+    return ids
+
+
+def test_gallery_last_page_shows_no_next_link(app_client, owner_headers, conn):
+    _seed_images(conn, 5)
+    response = app_client.get("/gallery", headers=owner_headers)
+    assert response.status_code == 200
+    assert ">Next<" not in response.text
+
+
+def test_gallery_exactly_one_full_page_shows_no_next_link(app_client, owner_headers, conn):
+    _seed_images(conn, PAGE_SIZE)  # a full page, but nothing beyond it
+    response = app_client.get("/gallery", headers=owner_headers)
+    assert response.status_code == 200
+    assert ">Next<" not in response.text
+
+
+def test_gallery_full_page_with_more_rows_shows_next_link(app_client, owner_headers, conn):
+    _seed_images(conn, PAGE_SIZE + 1)
+    response = app_client.get("/gallery", headers=owner_headers)
+    assert response.status_code == 200
+    assert ">Next<" in response.text
+
+
+def test_gallery_pagination_links_preserve_the_active_filters(app_client, owner_headers, conn):
+    _seed_images(conn, PAGE_SIZE + 5, prompt="preserveme")
+    page1 = app_client.get("/gallery", headers=owner_headers, params={"q": "preserveme", "page": 1})
+    assert page1.status_code == 200
+    # href values are HTML-attribute-escaped ("&" -> "&amp;"), same as a browser would receive them:
+    # unescape before using one as a request URL, exactly as a browser does when it follows the link.
+    next_href = html.unescape(re.search(r'<a href="([^"]+)">Next</a>', page1.text).group(1))
+    assert "q=preserveme" in next_href
+    assert "page=2" in next_href
+
+    page2 = app_client.get(next_href, headers=owner_headers)
+    assert page2.status_code == 200
+    assert ">Next<" not in page2.text  # exactly 5 rows on page 2 (48 + 5, page size 48)
+    prev_href = html.unescape(re.search(r'<a href="([^"]+)">Previous</a>', page2.text).group(1))
+    assert "q=preserveme" in prev_href
+    assert "page=1" in prev_href
+
+    prev_page = app_client.get(prev_href, headers=owner_headers)
+    assert prev_page.status_code == 200
+    assert ">Next<" in prev_page.text  # back on page 1, which does have a further page
+
+
+def test_gallery_huge_page_number_answers_422_not_500(app_client, owner_headers):
+    """(page - 1) * PAGE_SIZE is bound as a SQLite query parameter; a page number anywhere near
+    SQLite's own signed-64-bit ceiling overflows that bind and used to surface as an uncaught 500.
+    Hand-edited URLs are the only way to reach this, so FastAPI's own 422 (from a tighter Query
+    bound) is the accepted outcome, the same as any other out-of-domain query value here."""
+    response = app_client.get("/gallery", headers=owner_headers, params={"page": 2**63 - 1})
+    assert response.status_code == 422
+
+
+def test_gallery_page_at_the_new_bound_still_answers_200(app_client, owner_headers):
+    from artio.routes.pages import _MAX_PAGE
+
+    response = app_client.get("/gallery", headers=owner_headers, params={"page": _MAX_PAGE})
+    assert response.status_code == 200  # a page this far out is simply empty, never an error
+    assert "No images yet" in response.text

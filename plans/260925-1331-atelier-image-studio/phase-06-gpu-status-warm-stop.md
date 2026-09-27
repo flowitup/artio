@@ -1,10 +1,10 @@
 ---
 phase: 6
 title: "GPU status, warm-up & stop"
-status: pending
+status: completed
 priority: P2
 effort: "8h"
-dependencies: [5]
+dependencies: [4]
 ---
 
 # Phase 6: GPU status, warm-up & stop
@@ -261,23 +261,23 @@ The in-memory state is `status` (the `GpuStatus` caches), `ping_calls`, `last_pi
 <!-- Updated: Red Team 2026-09-25 - F15 GPU status model -->
 
 Create:
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/gpu.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/gpu.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/gpu.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/gpu_panel.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/gpu_stop_confirm.html`
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/test_gpu.py`
+- `/Users/sweet-home/Works/artio/atelier/gpu.py`
+- `/Users/sweet-home/Works/artio/atelier/routes/gpu.py`
+- `/Users/sweet-home/Works/artio/atelier/templates/gpu.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/gpu_panel.html`
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/gpu_stop_confirm.html`
+- `/Users/sweet-home/Works/artio/tests/test_gpu.py`
 
 Modify:
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/modal_gateway.py`: `stats`, `app_state`, `spawn_ping`, `stop_containers`, the `_modal_cli` helper, and the pure parsers `parse_app_state` and `parse_container_ids`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/worker.py`: `status`, `ensure_pinger`, the pinger step, `stop_backend`, and the circuit breaker in the poller's failure path.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/jobs.py`: `active_counts` and `cancel_all_for_backend`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/main.py`: include the GPU router, and start pingers for open windows at startup.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/pages.py`: the header-status handler adds the GPU summary from `worker.status`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/header_status.html`: the GPU badge.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/base.html`: a nav link to `/gpu`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/fakes.py`: the fake gateway gains scripted stats and app state, `spawn_ping` with an optional test hook for slow spawns, `stop_containers` with an "already stopped" option, and entries in its ordered `calls` log.
-- `/Users/sweet-home/Works/qwen21-uc-modal/docs/deployment-guide.md`: the "Backend unhealthy" runbook entry.
+- `/Users/sweet-home/Works/artio/atelier/modal_gateway.py`: `stats`, `app_state`, `spawn_ping`, `stop_containers`, the `_modal_cli` helper, and the pure parsers `parse_app_state` and `parse_container_ids`.
+- `/Users/sweet-home/Works/artio/atelier/worker.py`: `status`, `ensure_pinger`, the pinger step, `stop_backend`, and the circuit breaker in the poller's failure path.
+- `/Users/sweet-home/Works/artio/atelier/jobs.py`: `active_counts` and `cancel_all_for_backend`.
+- `/Users/sweet-home/Works/artio/atelier/main.py`: include the GPU router, and start pingers for open windows at startup.
+- `/Users/sweet-home/Works/artio/atelier/routes/pages.py`: the header-status handler adds the GPU summary from `worker.status`.
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/header_status.html`: the GPU badge.
+- `/Users/sweet-home/Works/artio/atelier/templates/base.html`: a nav link to `/gpu`.
+- `/Users/sweet-home/Works/artio/tests/fakes.py`: the fake gateway gains scripted stats and app state, `spawn_ping` with an optional test hook for slow spawns, `stop_containers` with an "already stopped" option, and entries in its ordered `calls` log.
+- `/Users/sweet-home/Works/artio/docs/deployment-guide.md`: the "Backend unhealthy" runbook entry.
 
 Delete: none.
 
@@ -323,13 +323,43 @@ Delete: none.
 
 ## Todo List
 
-- [ ] Gateway: parsers tested on literal CLI JSON (including the missing-app case); `_modal_cli` with `--yes`, no-color and timeout; `stats`, `app_state`, `spawn_ping`, `stop_containers` with "already stopped" as success
-- [ ] `gpu.py`: on-read status with 10 s and 60 s caches, single refresh in flight, handle invalidation on a new app ID; display state with "warm" only after a successful ping; `backend_state` helpers; cost helpers
-- [ ] Worker: a pinger task only while a window is open, holding the lock across spawn, with a persisted ping ID; failed pings mark unhealthy; Stop sequence with gather-cancel and convergence; circuit breaker fed by pings and jobs
-- [ ] Routes, `/gpu` page, polled panel, stop confirmation, header badge, all 200
-- [ ] "Backend unhealthy" runbook entry
-- [ ] `tests/test_gpu.py` green
-- [ ] [OWNER-GATED] Live checks: warm within about 70 s, zero about 60 s after expiry, kill test, stop with jobs, stopped state plus a job after redeploy; timings recorded
+- [x] Gateway: parsers tested on literal CLI JSON (including the missing-app case); `_modal_cli` with `--yes`, no-color and timeout; `stats`, `app_state`, `spawn_ping`, `stop_containers` with "already stopped" as success. Verified: `test_parse_app_state_prefers_the_deployed_row`, `test_app_missing_from_the_list_reads_as_stopped`, `test_parse_app_state_picks_the_newest_row_when_none_is_deployed`, `test_parse_container_ids_returns_the_ids`, `test_modal_cli_*` (3), `test_stop_treats_already_stopped_containers_as_success`, `test_stop_containers_reraises_a_real_stop_failure`, `test_stop_containers_returns_zero_when_the_app_is_not_deployed`, `test_app_state_parses_a_real_cli_response`, `test_stats_calls_get_current_stats_on_the_ping_bound_method`, `test_spawn_ping_returns_the_call_id`, `test_spawn_ping_permanent_error_drops_the_cached_handle` all pass, only stubbing `asyncio.create_subprocess_exec` / `modal.Cls.from_name`.
+- [x] `gpu.py`: on-read status with 10 s and 60 s caches, single refresh in flight, handle invalidation on a new app ID; display state with "warm" only after a successful ping; `backend_state` helpers; cost helpers. Verified: `test_status_is_computed_on_read_with_ten_and_sixty_second_caches`, `test_concurrent_readers_share_one_refresh`, `test_status_shows_deployed_warm_scaled_to_zero_and_stopped`, `test_changed_app_id_drops_the_cached_handle` all pass.
+- [x] Worker: a pinger task only while a window is open, holding the lock across spawn, with a persisted ping ID; failed pings mark unhealthy; Stop sequence with gather-cancel and convergence; circuit breaker fed by pings and jobs. Verified: all named pinger/Stop/breaker tests in `tests/test_gpu.py` pass (22 tests across the Warm-up, Stop and Breaker sections), including lock-contention proofs (`test_stop_waits_for_a_slow_ping_spawn_in_flight`, `test_dispatcher_spawns_nothing_while_stop_runs`) and restart resumption.
+- [x] Routes, `/gpu` page, polled panel, stop confirmation, header badge, all 200. Verified: `test_gpu_page_and_panel_are_owner_only_and_200`, `test_warm_and_stop_routes_are_owner_only`, `test_warm_route_*`, `test_stop_route_requires_confirmation_then_stops`, `test_header_status_shows_the_gpu_badge` pass; `tests/test_auth.py::test_service_identity_is_refused_outside_the_api_allowlist` and `tests/test_pages_hide_secrets.py::test_pages_hide_secrets` still pass unmodified with the two new GET routes swept in.
+- [x] "Backend unhealthy" runbook entry. Added to `docs/deployment-guide.md`'s Routine operations section, alongside a short GPU status/warm-up/stop operator note.
+- [x] `tests/test_gpu.py` green. 66 tests, all passing (`uv run pytest -q tests/test_gpu.py`) after the independent review's fix round (see notes below); 42 before it.
+- [x] Independent-review fix round: 2 High and 6 Medium defects fixed in place (panel HTMX self-poll and dropped POST responses; Stop's exception safety; dispatcher stalling and unbounded Stop steps; a warm-click/pinger-expiry race; a stopped app misreading as "unknown"; no negative caching on a failing gateway; swallowed cancel failures; a sticky unhealthy notice), plus the reviewer's 9 Low items that were cheap and safe, and its owner-decision defaults (extend-only warm clicks, job success clears unhealthy, the breaker marker set, trusting the app-state read for a stopped app). The phantom test was replaced with one that genuinely runs `stop_backend` concurrently with the dispatcher. See the fullstack-developer report's "Review fixes" section for the file:line detail and the mutation re-check.
+- [x] Re-review fix round: the 6 remaining Low regressions (an orphaned CLI child on outer cancellation; a duplicate app-state read per convergence pass; the cancel phase running outside the overall deadline; an empty timed-out-step message; unused per-step timeout constant; a full 60s of "unknown" after one transient app-state failure) are all fixed, plus tests added for the reviewer's 13 previously-uncaught mutants (the hanging-step-vs-deadline, stats negative caching, pinger-exits-after-Stop and queued-jobs'-null-call-ids cases first). `tests/test_gpu.py` grew from 67 to 90 tests. See the fullstack-developer report's "Re-review fixes" section.
+- [x] [OWNER-GATED] Live checks: warm within about 70 s, zero about 60 s after expiry, kill test, stop with jobs, stopped state plus a job after redeploy; timings recorded
+
+### Live verification (2026-09-27, owner-approved, about $0.50 of Modal credits)
+
+The GPU controls were pushed as `cd8497c`; the deploy was green, and the app log showed no errors.
+
+1. **Idle:** `/gpu` showed "scaled to zero · deployed · 0 containers". The warm buttons show estimates of $0.20, $0.53 and $1.01.
+2. **Warm 5 min**, clicked at 10:10:15:
+   - after 34 s: "warming", 1 container and backlog 1 (the first ping, waiting for the boot);
+   - by 54 s at the latest: **warm**. Modal's own listing showed exactly one `qwen21-uc` container.
+3. **Expiry:** the window ended at 10:15:15, and Modal listed 0 containers at 10:17:09, 97–114 s after the end.
+   - The plan's "about 60 s" left out two delays: the last ping can be up to 30 s old, and Modal takes a short while to remove the container after its 60 s idle window. The guide now says about 2 minutes.
+   - The header badge refreshed slowly because the tab was hidden. `document.visibilityState` was `hidden`, and Chrome throttles timers in background tabs; it refreshes normally when visible. This is not an app defect.
+4. **Kill test:**
+   - Warm 15 min, clicked at 10:19:43, was warm by 65 s.
+   - `deploy.sh stop` at 10:20:56: 0 containers 97–108 s later.
+   - `deploy.sh start` at 10:22:54: the pinger resumed the open window, and a container was up by 10:23:05.
+   - Stop with no jobs, at 10:23:21: the panel read "Stopped." within 20 s, and 0 containers held through 10:24:37 (no pinger came back).
+5. **Stop with jobs** (a batch of 2):
+   - The confirmation read "0 queued and 2 running job(s) will be cancelled".
+   - After confirming (08:25:59Z), the POST finished at 08:26:15Z (16 s), and the panel read "Stopped. Cancelled 2 running job(s)."
+   - Both jobs showed cancelled with Retry, and no container appeared in the next 110 s.
+6. **Stopped state and redeploy:**
+   - `modal app stop --yes qwen21-uc` at 10:35:23: the panel read **"stopped"** by 10:36:24, and Warm was refused ("is stopped: deploy it before warming it up.").
+   - Deploy-modal run 36306756609 was green at 10:37:37 with a new app ID, and the panel read "scaled to zero" by 10:38:11.
+   - One job submitted at 10:38:22 **without restarting Atelier** finished (done in 117 s, the first cold container of the new app), so the cached handle followed the new app ID.
+7. **Defect found and fixed during the checks:**
+   - A refusal (stopped app, unknown backend, bad minutes) replaced the whole panel with a bare message, which removed its buttons and its poll.
+   - `_flash` now re-renders the panel with the message inside it. The new test fails without the fix, and the suite now has 403 tests.
 
 ## Success Criteria
 
@@ -364,7 +394,7 @@ Delete: none.
 ## Verification
 
 ```bash
-cd /Users/sweet-home/Works/qwen21-uc-modal
+cd /Users/sweet-home/Works/artio
 uv run ruff check && uv run pytest -q tests/test_gpu.py -v && uv run pytest -q
 # Free Modal API reads (no GPU time)
 uv run modal app list --json

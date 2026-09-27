@@ -1,11 +1,13 @@
 ---
 phase: 5
 title: "Backups & restore"
-status: pending
+status: cancelled
 priority: P1
 effort: "7h"
 dependencies: [4]
 ---
+
+> **Dropped by the owner on 2026-09-27:** "don't need to make a backup for Atelier". Nothing in this phase was implemented, and no R2 bucket, token or restic password was created. The data volume holds the only copy of Atelier's images and database. The empty `/mnt/atelier-data/backup` directory made during the volume setup is unused.
 
 # Phase 5: Backups & restore
 
@@ -220,23 +222,23 @@ The service is `Type=oneshot`, `After=network-online.target docker.service`, `Re
 <!-- Updated: Red Team 2026-09-25 - F2 backup pipeline -->
 
 Create:
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/backup_db.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/backup_status.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/backup/atelier-backup-common.sh`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/backup/atelier-backup.sh`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/backup/atelier-backup-verify.sh`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/systemd/atelier-backup.service`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/systemd/atelier-backup.timer`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/systemd/atelier-backup-verify.service`
-- `/Users/sweet-home/Works/qwen21-uc-modal/deploy/systemd/atelier-backup-verify.timer`
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/fixtures/restic-ls-recursive.jsonl`: captured from a real run of the pinned restic image against a throwaway local repository.
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/test_backup_db.py`
-- `/Users/sweet-home/Works/qwen21-uc-modal/tests/test_backup_status.py`
+- `/Users/sweet-home/Works/artio/atelier/backup_db.py`
+- `/Users/sweet-home/Works/artio/atelier/backup_status.py`
+- `/Users/sweet-home/Works/artio/deploy/backup/atelier-backup-common.sh`
+- `/Users/sweet-home/Works/artio/deploy/backup/atelier-backup.sh`
+- `/Users/sweet-home/Works/artio/deploy/backup/atelier-backup-verify.sh`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-backup.service`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-backup.timer`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-backup-verify.service`
+- `/Users/sweet-home/Works/artio/deploy/systemd/atelier-backup-verify.timer`
+- `/Users/sweet-home/Works/artio/tests/fixtures/restic-ls-recursive.jsonl`: captured from a real run of the pinned restic image against a throwaway local repository.
+- `/Users/sweet-home/Works/artio/tests/test_backup_db.py`
+- `/Users/sweet-home/Works/artio/tests/test_backup_status.py`
 
 Modify:
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/routes/pages.py`: the header-status handler adds `backup_status.read_status()`.
-- `/Users/sweet-home/Works/qwen21-uc-modal/atelier/templates/partials/header_status.html`: the backup badge.
-- `/Users/sweet-home/Works/qwen21-uc-modal/docs/deployment-guide.md`: the "Backups and restore" section, with restore paths (a) and (b) and the purge procedure.
+- `/Users/sweet-home/Works/artio/atelier/routes/pages.py`: the header-status handler adds `backup_status.read_status()`.
+- `/Users/sweet-home/Works/artio/atelier/templates/partials/header_status.html`: the backup badge.
+- `/Users/sweet-home/Works/artio/docs/deployment-guide.md`: the "Backups and restore" section, with restore paths (a) and (b) and the purge procedure.
 
 Delete: none.
 
@@ -348,7 +350,7 @@ Delete: none.
 ## Verification
 
 ```bash
-cd /Users/sweet-home/Works/qwen21-uc-modal
+cd /Users/sweet-home/Works/artio
 uv run ruff check && uv run pytest -q tests/test_backup_db.py tests/test_backup_status.py
 shellcheck deploy/backup/*.sh
 # [OWNER-GATED] on folio-prod-1

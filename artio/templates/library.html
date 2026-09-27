@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Library &middot; Artio{% endblock %}
+{% block content %}
+<h1>Library</h1>
+<div id="library-content">
+  {% if not presets %}
+  <p>No presets saved yet. Use "Save as preset" on the <a href="/generate">generate form</a>.</p>
+  {% else %}
+  <table>
+    <thead>
+      <tr><th>Name</th><th>Model</th><th>Updated</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for preset in presets %}
+      <tr>
+        <td>{{ preset.name }}</td>
+        <td>{{ preset.model_id }}</td>
+        <td>{{ preset.updated_at | localtime }}</td>
+        <td>
+          <a href="/generate?preset={{ preset.id }}" role="button">Load</a>
+          <button hx-post="/presets/{{ preset.id }}/delete"
+                  hx-confirm="Delete preset '{{ preset.name }}'?"
+                  hx-target="#library-content" hx-select="#library-content" hx-swap="outerHTML"
+                  class="contrast">Delete</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% endif %}
+</div>
+{% endblock %}

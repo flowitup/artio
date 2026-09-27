@@ -7,8 +7,8 @@ import asyncio
 import pytest
 from starlette.testclient import TestClient
 
-from atelier import jobs
-from atelier.main import create_app
+from artio import jobs
+from artio.main import create_app
 from tests.conftest import PUBLIC_ORIGIN
 
 
@@ -77,7 +77,7 @@ def test_download_sets_content_disposition_with_id_and_seed(
     response = app_client.get(f"/images/{image_id}/file", headers=owner_headers)
     assert response.status_code == 200
     assert response.headers["content-type"] == "image/png"
-    assert response.headers["content-disposition"] == f'attachment; filename="atelier-{image_id}-42.png"'
+    assert response.headers["content-disposition"] == f'attachment; filename="artio-{image_id}-42.png"'
     assert response.content == png_bytes
 
 
@@ -140,12 +140,13 @@ def test_delete_with_an_oversized_image_id_is_refused_with_200_and_a_message_not
     assert f"Image {oversized} no longer exists." in response.text
 
 
-def test_delete_confirmation_text_names_the_backup_retention(
+def test_delete_confirmation_says_there_is_no_backup(
     app_client, owner_headers, registry, fake_gateway, png_bytes, conn
 ):
     image_id, _ = _finished_image(app_client, owner_headers, registry, fake_gateway, png_bytes, conn)
     response = app_client.get(f"/images/{image_id}", headers=owner_headers)
-    assert "6 months" in response.text
+    assert "There are no backups, so this cannot be undone." in response.text
+    assert "6 months" not in response.text
 
 
 def test_delete_removes_image_job_and_empty_batch(

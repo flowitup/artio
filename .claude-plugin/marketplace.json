@@ -1,0 +1,8 @@
+{
+  "name": "artio-local",
+  "owner": { "name": "Manh Trung BUI" },
+  "description": "One-entry local marketplace for installing the Artio plugin in Claude Code from this checkout.",
+  "plugins": [
+    { "name": "artio", "source": "./plugin", "description": "Drive Artio from Claude" }
+  ]
+}

@@ -1,4 +1,4 @@
-"""Opt-in live test: real Modal generations, costing GPU money. Skipped unless ATELIER_LIVE_TESTS=1.
+"""Opt-in live test: real Modal generations, costing GPU money. Skipped unless ARTIO_LIVE_TESTS=1.
 
 Renders A, then B, then waits for the backend to scale to zero, then renders A again on a fresh
 container. ComfyUI keeps an identical graph's outputs cached across prompts (an A → B → A sequence on one
@@ -17,9 +17,9 @@ import modal
 import pytest
 from PIL import Image, ImageChops, ImageStat
 
-from atelier.modal_gateway import ModalSdkGateway
-from atelier.registry import DEFAULT_REGISTRY
-from atelier.workflows import GenParams, qwen_image_21
+from artio.modal_gateway import ModalSdkGateway
+from artio.registry import DEFAULT_REGISTRY
+from artio.workflows import GenParams, qwen_image_21
 
 pytestmark = pytest.mark.live
 
@@ -31,8 +31,8 @@ _PROMPT = "a lighthouse at dusk, dramatic clouds, cinematic lighting"
 
 @pytest.fixture(autouse=True)
 def _require_live_tests_enabled():
-    if os.environ.get("ATELIER_LIVE_TESTS") != "1":
-        pytest.skip("set ATELIER_LIVE_TESTS=1 to run live Modal generations (spends GPU money)")
+    if os.environ.get("ARTIO_LIVE_TESTS") != "1":
+        pytest.skip("set ARTIO_LIVE_TESTS=1 to run live Modal generations (spends GPU money)")
 
 
 def _decode(png_bytes: bytes) -> Image.Image:

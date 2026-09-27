@@ -1,4 +1,4 @@
-# Pushing to main tests, builds ghcr.io/flowitup/atelier and deploys the exact resulting digest to
+# Pushing to main tests, builds ghcr.io/flowitup/artio and deploys the exact resulting digest to
 # folio-prod-1 through the forced-command SSH key, then relies on deploy.sh's own health check
 # (version + live worker loops) with automatic rollback. See docs/deployment-guide.md.
 #
@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
 
 permissions: {}
-concurrency: {group: deploy-atelier, cancel-in-progress: false}
+concurrency: {group: deploy-artio, cancel-in-progress: false}
 
 jobs:
   test:
@@ -47,8 +47,8 @@ jobs:
         with:
           context: .   # the local, already-checked-out tree: a git-context build can ignore .dockerignore
           push: true
-          tags: ghcr.io/flowitup/atelier:${{ github.sha }},ghcr.io/flowitup/atelier:latest
-          build-args: ATELIER_VERSION=${{ github.sha }}
+          tags: ghcr.io/flowitup/artio:${{ github.sha }},ghcr.io/flowitup/artio:latest
+          build-args: ARTIO_VERSION=${{ github.sha }}
           labels: |
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
@@ -65,14 +65,14 @@ jobs:
           SHA: ${{ github.sha }}
           DIGEST: ${{ needs.build.outputs.digest }}
           HOST: ${{ secrets.HETZNER_HOST }}
-          SSH_KEY: ${{ secrets.ATELIER_DEPLOY_SSH_KEY }}
+          SSH_KEY: ${{ secrets.ARTIO_DEPLOY_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.HETZNER_KNOWN_HOSTS }}
           REGISTRY_TOKEN: ${{ github.token }}
         run: |
           [[ "$SHA" =~ ^[0-9a-f]{40}$ && "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "bad sha or digest"; exit 1; }
           install -d -m 700 ~/.ssh
-          printf '%s\n' "$SSH_KEY" > ~/.ssh/atelier_deploy && chmod 600 ~/.ssh/atelier_deploy
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/artio_deploy && chmod 600 ~/.ssh/artio_deploy
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          printf '%s\n%s\n' "$REGISTRY_TOKEN" "$GITHUB_ACTOR" | ssh -i ~/.ssh/atelier_deploy -o IdentitiesOnly=yes \
+          printf '%s\n%s\n' "$REGISTRY_TOKEN" "$GITHUB_ACTOR" | ssh -i ~/.ssh/artio_deploy -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 "root@$HOST" "deploy $SHA $DIGEST"

@@ -12,8 +12,8 @@ import modal.exception
 import pytest
 from PIL import Image
 
-from atelier import db, jobs, storage
-from atelier.worker import Worker
+from artio import db, jobs, storage
+from artio.worker import Worker
 
 
 class _Clock:

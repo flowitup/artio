@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import time
 
-from atelier import jobs as jobs_module
-from atelier.routes.health import _loop_status
+from artio import jobs as jobs_module
+from artio.routes.health import _loop_status
 
 
 def test_healthz_succeeds_without_a_token(app_client):

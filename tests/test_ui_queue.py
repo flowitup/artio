@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from atelier import jobs
+from artio import jobs
 
 
 def _dispatch(app_client):

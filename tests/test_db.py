@@ -2,7 +2,7 @@
 
 import sqlite3
 
-from atelier import db
+from artio import db
 
 
 def _table_names(conn: sqlite3.Connection) -> set[str]:

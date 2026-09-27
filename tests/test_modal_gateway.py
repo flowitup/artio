@@ -22,9 +22,9 @@ from modal import _functions
 from modal._serialization import serialize
 from modal_proto import api_pb2
 
-from atelier import modal_gateway
-from atelier.modal_gateway import ModalSdkGateway, classify_poll_exception
-from atelier.registry import Backend
+from artio import modal_gateway
+from artio.modal_gateway import ModalSdkGateway, classify_poll_exception
+from artio.registry import Backend
 
 CALL_ID = "fc-01testcafef00dfeedfacecafe"
 
@@ -126,7 +126,7 @@ def test_transient_errors_are_classified_as_pending_with_a_reason(exc):
 
 
 def test_execution_error_stays_failed_not_transient():
-    # Ambiguous (Atelier can't tell whether a failed deserialization is retriable): stays failed, so
+    # Ambiguous (Artio can't tell whether a failed deserialization is retriable): stays failed, so
     # the user can retry it by hand rather than the dispatcher retrying it forever on its own.
     result = classify_poll_exception(modal.exception.ExecutionError("could not deserialize"))
     assert result.state == "failed"

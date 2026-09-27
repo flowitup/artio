@@ -2,7 +2,7 @@
 
 import pytest
 
-from atelier.workflows import GenParams, qwen_image_21
+from artio.workflows import GenParams, qwen_image_21
 
 
 @pytest.mark.parametrize(

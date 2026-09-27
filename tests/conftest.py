@@ -1,4 +1,4 @@
-"""Shared fixtures for the Atelier test suite."""
+"""Shared fixtures for the Artio test suite."""
 
 import asyncio
 import dataclasses
@@ -15,11 +15,11 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from PIL import Image
 from starlette.testclient import TestClient
 
-from atelier import db, jobs
-from atelier.config import Settings, load_settings
-from atelier.main import create_app
-from atelier.registry import DEFAULT_REGISTRY, Registry
-from atelier.worker import Worker
+from artio import custom_workflows, db, jobs, library
+from artio.config import Settings, load_settings
+from artio.main import create_app
+from artio.registry import DEFAULT_REGISTRY, Registry
+from artio.worker import Worker
 from tests.fakes import FakeModalGateway
 
 BACKEND_SCRIPT = Path(__file__).resolve().parent.parent / "modal" / "qwen21_uc_app.py"
@@ -28,10 +28,10 @@ BACKEND_SCRIPT = Path(__file__).resolve().parent.parent / "modal" / "qwen21_uc_a
 # JWKS fetch is always patched (see jwks_without_network below), so TEAM_DOMAIN and AUD never need to
 # resolve to anything real.
 TEAM_DOMAIN = "https://flowitupteam-test.cloudflareaccess.com"
-AUD = "test-atelier-aud"
+AUD = "test-artio-aud"
 OWNER_EMAIL = "owner@example.com"
 PLUGIN_CLIENT_ID = "test-plugin-client-id.access"
-PUBLIC_ORIGIN = "http://atelier.test"
+PUBLIC_ORIGIN = "http://artio.test"
 
 
 @pytest.fixture(scope="session")
@@ -54,8 +54,8 @@ def settings(tmp_path) -> Settings:
     """A `test`-env Settings backed by a fresh temporary data directory."""
     return load_settings(
         {
-            "ATELIER_ENV": "test",
-            "ATELIER_DATA_DIR": str(tmp_path),
+            "ARTIO_ENV": "test",
+            "ARTIO_DATA_DIR": str(tmp_path),
         }
     )
 
@@ -150,10 +150,17 @@ def service_headers(access_key) -> dict[str, str]:
     return {"Cf-Access-Jwt-Assertion": token}
 
 
+_ROUTE_IDS_GRAPH = {
+    "1": {"class_type": "KSampler", "inputs": {"seed": 1}},
+    "2": {"class_type": "SaveImage", "inputs": {"images": ["1", 0]}},
+}
+
+
 @pytest.fixture
 def route_ids(conn, registry, settings, fake_gateway, rng, png_bytes) -> dict[str, int]:
-    """Seeds one finished job and its image directly through the engine (not the app), so route_ids has
-    a real row for every path-parameter name a GET route uses: image_id, batch_id, job_id."""
+    """Seeds one finished job and its image, one preset and one stored workflow directly through the
+    engine (not the app), so route_ids has a real row for every path-parameter name a GET route uses:
+    image_id, batch_id, job_id, preset_id, workflow_id."""
     model = next(iter(registry.models.values()))
     size = model.param_schema.default_size()
     request = jobs.BatchRequest(
@@ -178,4 +185,32 @@ def route_ids(conn, registry, settings, fake_gateway, rng, png_bytes) -> dict[st
     asyncio.run(worker.poll_once())
 
     image = conn.execute("SELECT id FROM images WHERE job_id = ?", (job["id"],)).fetchone()
-    return {"image_id": image["id"], "batch_id": batch_id, "job_id": job["id"]}
+
+    preset_id = library.save_preset(
+        conn,
+        "route ids preset",
+        model.id,
+        {
+            "prompt": "route ids preset prompt",
+            "negative": "",
+            "preset": "custom",
+            "width": size.width,
+            "height": size.height,
+            "steps": model.param_schema.steps_default,
+            "cfg": model.param_schema.cfg_default,
+        },
+        time.time(),
+    )
+    backend = registry.backend_for(model)
+    workflow_id = custom_workflows.store_workflow(
+        conn, registry, "route ids workflow", backend.id, _ROUTE_IDS_GRAPH, time.time()
+    )
+    conn.commit()
+
+    return {
+        "image_id": image["id"],
+        "batch_id": batch_id,
+        "job_id": job["id"],
+        "preset_id": preset_id,
+        "workflow_id": workflow_id,
+    }
