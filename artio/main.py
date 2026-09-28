@@ -33,6 +33,10 @@ from artio.worker import Worker
 # file-size check runs, so the request body itself is capped a little higher (3 MB) to leave room
 # for the surrounding multipart framing and the name/backend form fields.
 _WORKFLOW_UPLOAD_LIMIT_BYTES = 3 * 1024 * 1024
+# A workflow run carries one uploaded picture per Load Image node (each at most 10 MB, see
+# storage.MAX_INPUT_IMAGE_BYTES), so its form is capped far above the 64 KB default, but still well
+# under Cloudflare's own 100 MB request limit.
+_WORKFLOW_RUN_LIMIT_BYTES = 50 * 1024 * 1024
 
 _JWT_EXECUTOR_WORKERS = 2
 
@@ -116,7 +120,9 @@ def create_app(
     # land on every response -- including the limiter's own 413 and the guard's own 403.
     app.middleware("http")(access_guard)
     app.add_middleware(
-        BodySizeLimitMiddleware, per_path={"/workflows": _WORKFLOW_UPLOAD_LIMIT_BYTES}
+        BodySizeLimitMiddleware,
+        per_path={"/workflows": _WORKFLOW_UPLOAD_LIMIT_BYTES},
+        per_pattern=[(r"/workflows/\d+/run", _WORKFLOW_RUN_LIMIT_BYTES)],
     )
     app.add_middleware(SecurityHeadersMiddleware)
 

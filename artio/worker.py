@@ -19,7 +19,7 @@ from typing import Any, Literal
 
 import modal.exception
 
-from artio import gpu, jobs, storage
+from artio import custom_workflows, gpu, jobs, storage
 from artio.config import Settings
 from artio.db import session
 from artio.gpu import GpuStatus
@@ -206,7 +206,11 @@ class Worker:
 
         for job in batch:
             try:
-                call_id = await self.gateway.spawn_workflow(backend, json.loads(job["graph_json"]))
+                graph = json.loads(job["graph_json"])
+                # A custom workflow's uploaded input images travel with its graph; a missing one
+                # (MissingInputImage) fails just this job below, like any other permanent error.
+                images = await asyncio.to_thread(custom_workflows.input_images_for, self.settings.data_dir, graph)
+                call_id = await self.gateway.spawn_workflow(backend, graph, images)
             except _SPAWN_TRANSIENT as exc:
                 reason = f"Modal unavailable, retrying: {exc}"[:300]
                 self._back_off(backend.id, reason)

@@ -686,9 +686,9 @@ class _SlowSpawnGateway:
     def __init__(self, inner):
         self._inner = inner
 
-    async def spawn_workflow(self, backend, graph):
+    async def spawn_workflow(self, backend, graph, images=None):
         await asyncio.sleep(0.02)
-        return await self._inner.spawn_workflow(backend, graph)
+        return await self._inner.spawn_workflow(backend, graph, images)
 
     async def poll(self, call_id):
         return await self._inner.poll(call_id)

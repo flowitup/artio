@@ -36,8 +36,9 @@ def _upload(app_client, owner_headers, *, name: str, backend_id: str, graph: dic
 
 
 def _download_id_from_listing(app_client, owner_headers) -> int:
+    """The newest stored workflow's id, read from the list's own links."""
     listing = app_client.get("/workflows", headers=owner_headers)
-    return int(re.findall(r"/workflows/(\d+)/download", listing.text)[-1])
+    return max(int(i) for i in re.findall(r'href="/workflows/(\d+)"', listing.text))
 
 
 # -- validate_api_graph ------------------------------------------------------------------------------
@@ -526,7 +527,9 @@ def test_upload_success_redirects_and_appears_in_the_list(app_client, owner_head
     backend = next(iter(registry.backends.values()))
     response = _upload(app_client, owner_headers, name="listed-wf", backend_id=backend.id, graph=VALID_GRAPH)
     assert response.status_code == 303
-    assert response.headers["location"] == "/workflows"
+    assert re.fullmatch(r"/workflows/\d+", response.headers["location"])
+    page = app_client.get(response.headers["location"], headers=owner_headers)
+    assert '<h2 id="wf-title">listed-wf</h2>' in page.text
     listing = app_client.get("/workflows", headers=owner_headers)
     assert "listed-wf" in listing.text
 
@@ -596,13 +599,14 @@ def test_delete_route_removes_it_from_the_list(app_client, owner_headers, regist
 def test_workflow_delete_button_carries_hx_select_for_the_partial_swap(app_client, owner_headers, registry):
     """The counterpart of the same library.html proof: a Delete POST here re-renders the whole
     workflows.html page too, and only the client-side hx-select/hx-target pair makes that swap in
-    just #workflow-list. Nothing here runs htmx itself; this pins the attribute a template edit could
-    otherwise silently drop."""
+    just #workflows (the list and run panel). Nothing here runs htmx itself; this pins the attribute
+    a template edit could otherwise silently drop."""
     backend = next(iter(registry.backends.values()))
     _upload(app_client, owner_headers, name="hx-select-check", backend_id=backend.id, graph=VALID_GRAPH)
     response = app_client.get("/workflows", headers=owner_headers)
-    assert 'hx-target="#workflow-list"' in response.text
-    assert 'hx-select="#workflow-list"' in response.text
+    assert 'hx-target="#workflows"' in response.text
+    assert 'hx-select="#workflows"' in response.text
+    assert 'hx-push-url="/workflows"' in response.text
 
 
 # -- result linking and failure text -------------------------------------------------------------------

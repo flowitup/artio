@@ -8,7 +8,8 @@ Starlette or python-multipart ever spools the body.
 
 from __future__ import annotations
 
-from collections.abc import Awaitable, Callable, Mapping
+import re
+from collections.abc import Awaitable, Callable, Mapping, Sequence
 from typing import Any
 
 Scope = dict[str, Any]
@@ -30,7 +31,9 @@ class _BodyTooLarge(Exception):
 class BodySizeLimitMiddleware:
     """Refuses a request whose body exceeds its path's limit with a 413, before any downstream parser
     (form, multipart, JSON) ever spools it. `per_path` holds exact-path overrides, for a route that
-    legitimately needs a larger limit than the rest of the app (a future upload path, say)."""
+    legitimately needs a larger limit than the rest of the app (a future upload path, say).
+    `per_pattern` does the same for a path with an id in it: (regex, limit) pairs, each matched
+    against the whole path, checked after `per_path` and in order."""
 
     def __init__(
         self,
@@ -38,13 +41,20 @@ class BodySizeLimitMiddleware:
         *,
         default_limit: int = DEFAULT_LIMIT_BYTES,
         per_path: Mapping[str, int] | None = None,
+        per_pattern: Sequence[tuple[str, int]] = (),
     ) -> None:
         self.app = app
         self.default_limit = default_limit
         self.per_path = dict(per_path or {})
+        self.per_pattern = [(re.compile(pattern), limit) for pattern, limit in per_pattern]
 
     def _limit_for(self, path: str) -> int:
-        return self.per_path.get(path, self.default_limit)
+        if path in self.per_path:
+            return self.per_path[path]
+        for pattern, limit in self.per_pattern:
+            if pattern.fullmatch(path):
+                return limit
+        return self.default_limit
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":

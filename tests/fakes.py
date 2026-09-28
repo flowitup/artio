@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import threading
 from collections.abc import Awaitable, Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from modal.types import FunctionStats
 
@@ -20,6 +20,7 @@ from artio.registry import Backend
 class _Call:
     backend_id: str
     graph: dict
+    images: dict[str, bytes] = field(default_factory=dict)
     outcome: PollResult | None = None
 
 
@@ -55,13 +56,13 @@ class FakeModalGateway:
         self.stats_calls = 0
         self.app_state_calls = 0
 
-    async def spawn_workflow(self, backend: Backend, graph: dict) -> str:
+    async def spawn_workflow(self, backend: Backend, graph: dict, images: dict[str, bytes] | None = None) -> str:
         with self._lock:
             if self._spawn_errors:
                 raise self._spawn_errors.pop(0)
             call_id = f"fake-{self._next_id}"
             self._next_id += 1
-            self._calls[call_id] = _Call(backend_id=backend.id, graph=graph)
+            self._calls[call_id] = _Call(backend_id=backend.id, graph=graph, images=dict(images or {}))
         return call_id
 
     async def poll(self, call_id: str) -> PollResult:
@@ -168,6 +169,10 @@ class FakeModalGateway:
     def graph_for(self, call_id: str) -> dict:
         with self._lock:
             return self._calls[call_id].graph
+
+    def images_for(self, call_id: str) -> dict[str, bytes]:
+        with self._lock:
+            return self._calls[call_id].images
 
     @property
     def spawn_count(self) -> int:
