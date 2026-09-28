@@ -47,6 +47,16 @@ IMAGE_INPUT_NODES = ("LoadImage", "LoadImageMask")
 MAX_IMAGE_SLOTS = 16
 MAX_SLOT_TITLE_LEN = 80
 
+# The stock prompt nodes whose text the run form lets the owner rewrite each time, and the input that
+# holds that text. Anything else in a graph keeps the value it was uploaded with.
+PROMPT_INPUTS: dict[str, str] = {
+    "TextEncodeQwenImage21": "prompt",
+    "TextEncodeQwenImageEdit": "prompt",
+    "TextEncodeQwenImageEditPlus": "prompt",
+    "CLIPTextEncode": "text",
+}
+MAX_PROMPT_LEN = 8000
+
 
 class WorkflowError(Exception):
     """Raised for any workflow upload or run request that must be shown to the owner inline."""
@@ -67,6 +77,17 @@ class ImageSlot:
 
     node_id: str
     title: str
+
+
+@dataclass(frozen=True, slots=True)
+class TextSlot:
+    """One prompt node whose text the run form can rewrite: node id, the input holding the text, a
+    label (as for ImageSlot) and the text the graph was uploaded with."""
+
+    node_id: str
+    key: str
+    title: str
+    value: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -166,11 +187,41 @@ def image_slots(graph: dict) -> list[ImageSlot]:
     for node_id, node in graph.items():
         if node["class_type"] not in IMAGE_INPUT_NODES or not isinstance(node["inputs"].get("image"), str):
             continue
-        meta = node.get("_meta")
-        title = meta.get("title") if isinstance(meta, dict) else None
-        title = title.strip() if isinstance(title, str) else ""
-        slots.append(ImageSlot(node_id=node_id, title=title[:MAX_SLOT_TITLE_LEN] or node["class_type"]))
+        slots.append(ImageSlot(node_id=node_id, title=_title(node)))
     return slots
+
+
+def _title(node: dict) -> str:
+    meta = node.get("_meta")
+    title = meta.get("title") if isinstance(meta, dict) else None
+    title = title.strip() if isinstance(title, str) else ""
+    return title[:MAX_SLOT_TITLE_LEN] or node["class_type"]
+
+
+def text_slots(graph: dict) -> list[TextSlot]:
+    """Every prompt node (PROMPT_INPUTS) in an API graph whose text is a literal string, in the
+    graph's own order. A linked text input (fed by another node) is not a slot."""
+    slots = []
+    for node_id, node in graph.items():
+        key = PROMPT_INPUTS.get(node["class_type"])
+        if key is None or not isinstance(node["inputs"].get(key), str):
+            continue
+        slots.append(TextSlot(node_id=node_id, key=key, title=_title(node), value=node["inputs"][key]))
+    return slots
+
+
+def with_texts(graph: dict, texts: dict[str, str]) -> dict:
+    """A deep copy of graph with each prompt slot's text replaced (node_id -> text). Raises
+    WorkflowError for a text over MAX_PROMPT_LEN characters or a node that is not a prompt slot."""
+    keys = {slot.node_id: slot.key for slot in text_slots(graph)}
+    out = copy.deepcopy(graph)
+    for node_id, text in texts.items():
+        if node_id not in keys:
+            raise WorkflowError(f"Node {node_id} has no prompt text to replace.")
+        if len(text) > MAX_PROMPT_LEN:
+            raise WorkflowError(f"A prompt can be at most {MAX_PROMPT_LEN} characters.")
+        out[node_id]["inputs"][keys[node_id]] = text
+    return out
 
 
 def with_images(graph: dict, names: dict[str, str]) -> dict:
@@ -320,3 +371,22 @@ def delete_workflow(conn: sqlite3.Connection, workflow_id: int) -> None:
     cursor = conn.execute("DELETE FROM workflows WHERE id = ?", (workflow_id,))
     if cursor.rowcount == 0:
         raise UnknownWorkflow(workflow_id)
+
+
+def result_counts(conn: sqlite3.Connection) -> dict[int, int]:
+    """How many finished images each stored workflow has produced, by workflow id (absent = none)."""
+    rows = conn.execute(
+        "SELECT jobs.workflow_id AS wid, COUNT(*) AS n FROM images JOIN jobs ON jobs.id = images.job_id "
+        "WHERE jobs.workflow_id IS NOT NULL GROUP BY jobs.workflow_id"
+    ).fetchall()
+    return {row["wid"]: row["n"] for row in rows}
+
+
+def recent_image_ids(conn: sqlite3.Connection, workflow_id: int, limit: int = 8) -> list[int]:
+    """The newest images one stored workflow produced, newest first."""
+    rows = conn.execute(
+        "SELECT images.id FROM images JOIN jobs ON jobs.id = images.job_id WHERE jobs.workflow_id = ? "
+        "ORDER BY images.id DESC LIMIT ?",
+        (workflow_id, limit),
+    ).fetchall()
+    return [row["id"] for row in rows]

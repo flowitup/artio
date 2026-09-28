@@ -988,70 +988,415 @@ button.auto {
 }
 
 /* Custom workflows: the per-row run controls as one compact line. */
-.run-form {
+/* ---------- Workflows: stored-workflow list beside the selected one's run panel ---------- */
+.wf-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.wf-header h1 {
+  margin: 0;
+}
+
+.wf-upload {
+  margin: 0;
+  border: 0;
+}
+
+.wf-upload summary {
+  margin: 0;
+  list-style: none;
+}
+
+.wf-upload summary::-webkit-details-marker,
+.wf-upload summary::after {
+  display: none;
+}
+
+.wf-upload[open] {
+  flex-basis: 100%;
+  order: 1;
+}
+
+.wf-upload[open] summary {
+  margin-bottom: 0.75rem;
+}
+
+.wf-upload-form {
+  max-width: 40rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid var(--artio-line);
+  border-radius: var(--pico-border-radius);
+  background: var(--artio-raise);
+}
+
+.wf-upload-form small {
+  display: block;
+  margin: -0.4rem 0 0.9rem;
+}
+
+.wf-layout {
+  display: grid;
+  grid-template-columns: 14.5rem minmax(0, 1fr);
+  gap: 1.1rem;
+  align-items: start;
+}
+
+.wf-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  justify-content: stretch; /* Pico gives every nav space-between, which would shrink the rows */
+  border: 1px solid var(--artio-line);
+  border-radius: var(--pico-border-radius);
+  background: var(--artio-raise);
+  overflow: hidden;
+}
+
+.wf-search {
+  margin: 0.6rem !important;
+  width: calc(100% - 1.2rem) !important;
+  height: 2.3rem;
+  font-size: 0.88rem;
+}
+
+.wf-row {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.7rem 0.85rem;
+  border-top: 1px solid var(--artio-line);
+  color: var(--artio-ink);
+  text-decoration: none;
+}
+
+.wf-list > .wf-row:first-child,
+.wf-search + .wf-row {
+  border-top: 0;
+}
+
+.wf-row:hover {
+  background: color-mix(in srgb, var(--artio-accent-soft) 50%, transparent);
+}
+
+.wf-row[aria-current="page"] {
+  background: var(--artio-accent-soft);
+  box-shadow: inset 3px 0 0 var(--artio-accent);
+}
+
+.wf-row-name {
+  font-weight: 700;
+  font-size: 0.93rem;
+  overflow-wrap: anywhere;
+}
+
+.wf-row-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
-  margin: 0;
+  font-size: 0.78rem;
+  color: var(--artio-mute);
 }
 
-.run-form .image-slots {
-  flex-basis: 100%;
+.wf-badge {
+  font-weight: 700;
+  padding: 0.05rem 0.5rem;
+  border-radius: 999px;
+  background: var(--artio-accent-soft);
+  color: var(--artio-accent);
+  white-space: nowrap;
+}
+
+.wf-row[aria-current="page"] .wf-badge {
+  background: var(--artio-raise);
+}
+
+.wf-badge.plain {
+  background: transparent;
+  border: 1px solid var(--artio-line);
+  color: var(--artio-mute);
+}
+
+.wf-panel {
   display: grid;
+  gap: 1.1rem;
+  min-width: 0;
+  padding: 1.2rem 1.3rem;
+  border: 1px solid var(--artio-line);
+  border-radius: var(--pico-border-radius);
+  background: var(--artio-raise);
+}
+
+.wf-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.wf-panel-head h2 {
+  margin: 0 0 0.15rem;
+  font-size: 1.3rem;
+  overflow-wrap: anywhere;
+}
+
+.wf-panel-head p {
+  margin: 0;
+  font-size: 0.84rem;
+}
+
+.wf-actions {
+  display: flex;
   gap: 0.4rem;
-  margin-bottom: 0.2rem;
 }
 
-.run-form .image-slots label {
-  display: grid;
-  gap: 0.15rem;
+.wf-actions > * {
   margin: 0;
-  font-size: 0.85rem;
+  padding: 0.35rem 0.8rem;
+  font-size: 0.86rem;
 }
 
-.run-form .image-slots input[type="file"] {
-  width: 100%;
-  height: auto;
+.wf-panel .error-text {
+  margin: 0;
+}
+
+.wf-run {
+  display: grid;
+  gap: 1.1rem;
+  margin: 0;
+}
+
+.wf-sec {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0;
   padding: 0;
   border: 0;
-  background: none;
-  font-size: 0.82rem;
 }
 
-.run-form .image-slots input[type="file"]::file-selector-button {
-  padding: 0.3rem 0.8rem;
-  margin: 0 0.6rem 0 0;
-  font-size: 0.82rem;
+.wf-sec legend,
+.wf-label {
+  padding: 0;
+  margin: 0 0 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--artio-mute);
 }
 
-.run-form select,
-.run-form input {
-  width: auto;
+.wf-label small {
+  text-transform: none;
+  letter-spacing: 0;
+  font-weight: 500;
+}
+
+.wf-sec textarea {
+  margin: 0;
+  font-size: 0.95rem;
+  resize: vertical;
+}
+
+.wf-wells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.9rem;
+}
+
+.wf-slot {
+  position: relative;
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+
+.wf-well {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  margin: 0;
+  overflow: hidden;
+  border: 1.5px dashed color-mix(in srgb, var(--artio-accent) 45%, var(--artio-line));
+  border-radius: 0.7rem;
+  background: color-mix(in srgb, var(--artio-accent-soft) 55%, transparent);
+  cursor: pointer;
+}
+
+.wf-well:hover,
+.wf-well.dragging {
+  border-color: var(--artio-accent);
+  background: var(--artio-accent-soft);
+}
+
+.wf-well:has(input:focus-visible) {
+  outline: 2px solid var(--artio-accent);
+  outline-offset: 2px;
+}
+
+/* The real file input covers the whole well, invisible, so both a click and a dropped file land on it
+   natively; app.js only adds the preview. */
+.wf-well input[type="file"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.wf-well-hint {
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.75rem;
+  text-align: center;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--artio-accent);
+  pointer-events: none;
+}
+
+.wf-well-hint small {
+  font-weight: 500;
+  color: var(--artio-mute);
+}
+
+.wf-well img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.wf-well.filled {
+  border-style: solid;
+  border-color: var(--artio-line);
+}
+
+.wf-clear {
+  position: absolute;
+  top: 0.4rem;
+  right: 0.4rem;
+  z-index: 1;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.wf-slot-cap {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.wf-settings {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.wf-settings input[type="number"] {
+  width: 7rem;
   height: 2.3rem;
   margin: 0;
   padding: 0 0.6rem;
   font-size: 0.88rem;
 }
 
-.run-form select {
-  padding-right: 2rem;
+.wf-count {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--artio-mute);
 }
 
-.run-form input[name="seed"] {
-  width: 6rem;
+.wf-count input[type="number"] {
+  width: 4.5rem;
 }
 
-.run-form input[name="count"] {
-  width: 4rem;
+.wf-runline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 1rem;
+  border-top: 1px solid var(--artio-line);
 }
 
-.run-form button {
+.wf-runline .wf-progress {
+  font-size: 0.86rem;
+}
+
+.wf-runline button {
   width: auto;
   margin: 0;
-  height: 2.3rem;
-  padding-block: 0;
+  padding-inline: 1.5rem;
 }
+
+.wf-recent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.wf-recent a {
+  display: block;
+  width: 4.5rem;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  background: var(--artio-line);
+}
+
+.wf-recent img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wf-page-error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.wf-empty {
+  grid-column: 1 / -1;
+  max-width: 40rem;
+}
+
+/* A phone shows the selected workflow's panel first and the list of all workflows under it. */
+@media (max-width: 800px) {
+  .wf-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .wf-panel {
+    order: -1;
+    padding: 1rem;
+  }
+
+  .wf-wells {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 .thumb-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));

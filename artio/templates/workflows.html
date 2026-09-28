@@ -1,73 +1,131 @@
 {% extends "base.html" %}
-{% block title %}Workflows &middot; Artio{% endblock %}
+{% block title %}{% if selected %}{{ selected.name }} &middot; {% endif %}Workflows &middot; Artio{% endblock %}
 {% block content %}
-<h1>Custom workflows</h1>
-{% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
+<header class="wf-header">
+  <h1>Workflows</h1>
+  <details class="wf-upload"{% if upload_error or not workflows %} open{% endif %}>
+    <summary role="button" class="outline secondary">Upload .json</summary>
+    <form method="post" action="/workflows" enctype="multipart/form-data" class="wf-upload-form">
+      {% if upload_error %}<p class="error-text" role="alert">{{ upload_error }}</p>{% endif %}
+      <label for="wf-name">Name</label>
+      <input type="text" id="wf-name" name="name" value="{{ name }}" required>
 
-<form method="post" action="/workflows" enctype="multipart/form-data" class="narrow-form">
-  <label for="wf-name">Name</label>
-  <input type="text" id="wf-name" name="name" value="{{ name }}" required>
+      <label for="wf-backend">Backend</label>
+      <select id="wf-backend" name="backend_id" required>
+        {% for backend in backends %}
+        <option value="{{ backend.id }}" {% if backend.id == backend_id %}selected{% endif %}>{{ backend.label }}</option>
+        {% endfor %}
+      </select>
 
-  <label for="wf-backend">Backend</label>
-  <select id="wf-backend" name="backend_id" required>
-    {% for backend in backends %}
-    <option value="{{ backend.id }}" {% if backend.id == backend_id %}selected{% endif %}>{{ backend.label }}</option>
+      <label for="wf-file">Workflow file (API format, .json, at most 2 MB)</label>
+      <input type="file" id="wf-file" name="graph_file" accept=".json,application/json" required>
+      <small class="muted">In ComfyUI use Workflow &rarr; Export (API). Load Image nodes become image inputs and prompt nodes become a prompt box you can change on every run.</small>
+
+      <button type="submit" class="auto">Upload</button>
+    </form>
+  </details>
+</header>
+
+<div id="workflows" class="wf-layout">
+  {% if error and not selected %}<p class="error-text wf-page-error" role="alert">{{ error }}</p>{% endif %}
+  {% if workflows %}
+  <nav class="wf-list" aria-label="Stored workflows">
+    {% if workflows | length > 4 %}
+    <input type="search" class="wf-search" placeholder="Search workflows" aria-label="Search workflows">
+    {% endif %}
+    {% for wf in workflows %}
+    {% set n = wf.image_slots | length %}
+    {% set made = result_counts.get(wf.id, 0) %}
+    <a href="/workflows/{{ wf.id }}" class="wf-row"{% if selected and wf.id == selected.id %} aria-current="page"{% endif %}>
+      <span class="wf-row-name">{{ wf.name }}</span>
+      <span class="wf-row-meta">
+        <span class="wf-badge{% if not n %} plain{% endif %}">{% if n %}{{ n }} image{{ 's' if n != 1 }}{% else %}text only{% endif %}</span>
+        <span>{% if made %}{{ made }} result{{ 's' if made != 1 }}{% else %}not run yet{% endif %}</span>
+      </span>
+    </a>
     {% endfor %}
-  </select>
+  </nav>
 
-  <label for="wf-file">Workflow file (API format, .json, at most 2 MB)</label>
-  <small class="muted">Load Image nodes become image inputs you fill in each time you run the workflow (PNG, JPEG or WebP, at most 10 MB each).</small>
-  <input type="file" id="wf-file" name="graph_file" accept=".json,application/json" required>
+  {% if selected %}
+  <section class="wf-panel" aria-labelledby="wf-title">
+    <div class="wf-panel-head">
+      <div>
+        <h2 id="wf-title">{{ selected.name }}</h2>
+        <p class="muted">{{ selected.backend_label }} &middot; {{ selected.node_count }} nodes &middot; added {{ selected.created_at | localtime }}</p>
+      </div>
+      <div class="wf-actions">
+        <a href="/workflows/{{ selected.id }}/download" download role="button" class="outline secondary">Download</a>
+        <button hx-post="/workflows/{{ selected.id }}/delete"
+                hx-confirm="Delete workflow '{{ selected.name }}'? Its past results stay in the gallery."
+                hx-target="#workflows" hx-select="#workflows" hx-swap="outerHTML" hx-push-url="/workflows"
+                class="outline danger">Delete</button>
+      </div>
+    </div>
 
-  <button type="submit" class="auto">Upload</button>
-</form>
+    {% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
 
-<div id="workflow-list">
-  {% if not workflows %}
-  <p>No workflows uploaded yet.</p>
-  {% else %}
-  <div class="table-wrap">
-  <table>
-    <thead>
-      <tr><th>Workflow</th><th>Run</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for wf in workflows %}
-      <tr>
-        <td>{{ wf.name }}<br><small class="muted">{{ wf.backend_id }} &middot; {{ wf.created_at | localtime }}</small></td>
-        <td>
-          <form method="post" action="/workflows/{{ wf.id }}/run" class="run-form" enctype="multipart/form-data">
-              {% if wf.image_slots %}
-              <div class="image-slots">
-                {% for slot in wf.image_slots %}
-                <label>
-                  <span>{{ slot.title }} <small class="muted">node {{ slot.node_id }}</small></span>
-                  <input type="file" name="image:{{ slot.node_id }}" accept="image/png,image/jpeg,image/webp" required>
-                </label>
-                {% endfor %}
-              </div>
-              {% endif %}
-              <select name="seed_mode" aria-label="Seed">
-                {% for mode in seed_modes %}
-                <option value="{{ mode }}">{{ mode }}</option>
-                {% endfor %}
-              </select>
-              <input type="number" name="seed" placeholder="seed" min="0" aria-label="fixed seed">
-              <input type="number" name="count" min="1" max="8" value="1" aria-label="count" title="Images">
-              <button type="submit">Run</button>
-          </form>
-        </td>
-        <td>
-          <a href="/workflows/{{ wf.id }}/download" download role="button" class="outline secondary">Download</a>
-          <button hx-post="/workflows/{{ wf.id }}/delete"
-                  hx-confirm="Delete workflow '{{ wf.name }}'?"
-                  hx-target="#workflow-list" hx-select="#workflow-list" hx-swap="outerHTML"
-                  class="outline danger">Delete</button>
-        </td>
-      </tr>
+    <form method="post" action="/workflows/{{ selected.id }}/run" enctype="multipart/form-data" class="wf-run">
+      {% if selected.image_slots %}
+      <fieldset class="wf-sec">
+        <legend>Images</legend>
+        <div class="wf-wells">
+          {% for slot in selected.image_slots %}
+          <div class="wf-slot">
+            <label class="wf-well">
+              <input type="file" name="image:{{ slot.node_id }}" accept="image/png,image/jpeg,image/webp" required>
+              <span class="wf-well-hint">Drop an image, or click to choose<small>PNG, JPEG or WebP, up to 10 MB</small></span>
+              <img alt="" hidden>
+            </label>
+            <button type="button" class="wf-clear" aria-label="Remove the image for {{ slot.title }}" hidden>&times;</button>
+            <span class="wf-slot-cap"><b>{{ slot.title }}</b> <small class="muted wf-file">node {{ slot.node_id }}</small></span>
+          </div>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% endif %}
+
+      {% for slot in selected.text_slots %}
+      <div class="wf-sec">
+        <label for="wf-text-{{ loop.index }}" class="wf-label">{% if selected.text_slots | length == 1 %}Prompt{% else %}{{ slot.title }} <small class="muted">node {{ slot.node_id }}</small>{% endif %}</label>
+        <textarea id="wf-text-{{ loop.index }}" name="text:{{ slot.node_id }}" rows="3">{{ slot.value }}</textarea>
+      </div>
       {% endfor %}
-    </tbody>
-  </table>
+
+      <fieldset class="wf-sec">
+        <legend>Settings</legend>
+        <div class="wf-settings">
+          <div class="pills" role="radiogroup" aria-label="Seed">
+            <label><input type="radio" name="seed_mode" value="random" checked> Random seed</label>
+            <label><input type="radio" name="seed_mode" value="fixed"> Fixed seed</label>
+            <label title="Only with 1 image"><input type="radio" name="seed_mode" value="keep"> Graph's own seed</label>
+          </div>
+          <input type="number" name="seed" placeholder="seed" min="0" aria-label="Fixed seed" class="wf-seed">
+          <label class="wf-count">Images <input type="number" name="count" min="1" max="8" value="1"></label>
+        </div>
+      </fieldset>
+
+      <div class="wf-runline">
+        <span class="muted wf-progress">{% if selected.image_slots %}Choose an image for each input.{% endif %}</span>
+        <button type="submit">Run workflow</button>
+      </div>
+    </form>
+
+    {% if selected.recent %}
+    <div class="wf-sec">
+      <span class="wf-label">Recent results</span>
+      <div class="wf-recent">
+        {% for image_id in selected.recent %}
+        <a href="/images/{{ image_id }}"><img src="/images/{{ image_id }}/thumb" alt="Result {{ image_id }}" loading="lazy"></a>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </section>
+  {% endif %}
+  {% else %}
+  <div class="wf-empty">
+    <h2>No workflows yet</h2>
+    <p>Export a graph from ComfyUI with Workflow &rarr; Export (API) and upload it above. Each one then gets its own run panel here.</p>
   </div>
   {% endif %}
 </div>

@@ -122,7 +122,7 @@ def _upload_edit_workflow(app_client, owner_headers, registry) -> int:
     data = {"name": "edit wf", "backend_id": backend.id}
     app_client.post("/workflows", headers=owner_headers, data=data, files=files, follow_redirects=False)
     listing = app_client.get("/workflows", headers=owner_headers)
-    return int(re.findall(r"/workflows/(\d+)/download", listing.text)[-1])
+    return max(int(i) for i in re.findall(r'href="/workflows/(\d+)"', listing.text))
 
 
 def test_workflows_page_shows_one_file_input_per_slot(app_client, owner_headers, registry):

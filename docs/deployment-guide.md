@@ -606,7 +606,11 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
   `data_dir/inputs/artio-in-<sha256>.<ext>`, the job's graph points at that name, and the worker sends
   the bytes with the graph so the Modal backend writes them into ComfyUI's input folder first. A
   graph whose image slots are not filled (a run through `/api/v1`, say) is refused before any batch
-  is created. Deleting a stored workflow does not
+  is created. Each literal prompt text (`TextEncodeQwenImage21`, `TextEncodeQwenImageEdit(Plus)`
+  `prompt`, `CLIPTextEncode` `text`) becomes a prefilled box on the run form; an edited text (at most
+  8000 characters) replaces it in that run's graph only, and the first one is recorded as the
+  result's prompt. The page lists stored workflows beside the run panel of the selected one
+  (`/workflows/{id}`), with its newest results. Deleting a stored workflow does not
   touch any job that already ran it: each job keeps its own exact graph (`/jobs/{id}/graph.json`),
   only the link back to the deleted workflow clears. An invalid graph is rejected by ComfyUI itself
   at run time; the failed job's queue row shows its validation text verbatim, starting with

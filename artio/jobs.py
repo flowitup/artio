@@ -434,9 +434,14 @@ def create_workflow_batch(
     batch_id = cursor.lastrowid
     assert batch_id is not None
 
+    # The graph's first prompt text is recorded with each result, so a workflow image shows (and is
+    # found by) the prompt it was actually run with, like a generated one.
+    prompts = custom_workflows.text_slots(workflow.graph)
     for s in seeds:
         graph = workflow.graph if seed_mode == "keep" else custom_workflows.with_seed(workflow.graph, s)
         params = {"workflow": workflow.name, "seed": s}
+        if prompts:
+            params["prompt"] = prompts[0].value
         conn.execute(
             "INSERT INTO jobs (batch_id, model_id, backend_id, kind, params_json, graph_json, "
             "workflow_id, status, created_at) VALUES (?, NULL, ?, 'workflow', ?, ?, ?, 'queued', ?)",
