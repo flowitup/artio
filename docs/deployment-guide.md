@@ -401,6 +401,15 @@ automatically otherwise. A rejected image (wrong revision label, declared volume
 size cap) is removed from the host immediately, so a bad pull never lingers on Folio's shared
 disk.
 
+### Releases
+
+After a successful deploy, the `release` job reads the version from `pyproject.toml`. If
+`v<version>` has no GitHub release yet, it tags the deployed commit and publishes a release with
+notes generated from the merged pull requests; otherwise it does nothing. To cut a release, bump
+the version in `pyproject.toml`, `uv.lock` and `artio/__init__.py` in a pull request (a test keeps
+the first two and `__version__` in step). The sidebar and `/healthz` (`release`) show the running
+version.
+
 Changes under `modal/` also redeploy the Modal backend, from a separate workflow whose only
 step holding a Modal token is the `modal deploy` call itself.
 
