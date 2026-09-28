@@ -76,3 +76,29 @@ jobs:
           printf '%s\n%s\n' "$REGISTRY_TOKEN" "$GITHUB_ACTOR" | ssh -i ~/.ssh/artio_deploy -o IdentitiesOnly=yes \
             -o StrictHostKeyChecking=yes -o BatchMode=yes -o ConnectTimeout=20 -o ServerAliveInterval=15 \
             -o ServerAliveCountMax=4 "root@$HOST" "deploy $SHA $DIGEST"
+
+  # Tags the deployed commit v<version> (pyproject.toml) and publishes a GitHub release with notes
+  # generated from the merged PRs, but only the first time that version reaches production: bump the
+  # version (pyproject.toml, uv.lock, artio/__init__.py) in a PR to cut the next release.
+  release:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {contents: write}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+
+      - name: Publish the release if this version is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "bad version: $version"; exit 1; }
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "v$version is already released; nothing to do"
+            exit 0
+          fi
+          gh release create "v$version" --repo "$GITHUB_REPOSITORY" --target "$SHA" \
+            --title "Artio v$version" --generate-notes --latest
