@@ -3,7 +3,7 @@
 {% else %}
 <ul class="sidebar-links">
   {% for s in sessions %}
-  <li><a href="/chat/{{ s.id }}" {% if s.id == current %}aria-current="page"{% endif %}>{{ s.title }}</a></li>
+  <li><a href="/chat/{{ s.id }}" {% if s.id == current %}aria-current="page"{% endif %}><span>{{ s.title }}</span></a></li>
   {% endfor %}
 </ul>
 {% endif %}
