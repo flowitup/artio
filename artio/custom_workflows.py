@@ -11,8 +11,10 @@ import copy
 import json
 import sqlite3
 from dataclasses import dataclass
+from pathlib import Path
 
 from artio.registry import Registry
+from artio.storage import INPUT_IMAGE_NAME_RE, read_input_image
 
 MAX_GRAPH_BYTES = 2_000_000
 # A real API-format export is a flat object of nodes; their "inputs" nest at most a couple of levels
@@ -38,12 +40,33 @@ SEED_INPUTS: dict[str, str] = {
 OUTPUT_NODES = {"SaveImage", "PreviewImage"}
 
 
+# The stock ComfyUI nodes that read a picture from ComfyUI's input folder by file name. A fresh Modal
+# container's input folder holds none of the owner's files, so each of these needs an image uploaded
+# with the run (see with_images); a linked "image" input (fed by another node) is not a slot.
+IMAGE_INPUT_NODES = ("LoadImage", "LoadImageMask")
+MAX_IMAGE_SLOTS = 16
+MAX_SLOT_TITLE_LEN = 80
+
+
 class WorkflowError(Exception):
     """Raised for any workflow upload or run request that must be shown to the owner inline."""
 
 
 class UnknownWorkflow(Exception):
     """Raised when a workflow id has no row."""
+
+
+class MissingInputImage(Exception):
+    """Raised when a job graph references an input image this app no longer has on disk."""
+
+
+@dataclass(frozen=True, slots=True)
+class ImageSlot:
+    """One LoadImage-style node that needs an uploaded picture: its node id and a label for the form
+    (the node's own title from an API export's _meta, else its class name)."""
+
+    node_id: str
+    title: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -131,7 +154,56 @@ def validate_api_graph(raw: bytes) -> dict:
         )
     if not any(node["class_type"] in OUTPUT_NODES for node in graph.values()):
         raise WorkflowError("The graph has no SaveImage or PreviewImage node, so it would produce no image.")
+    if len(image_slots(graph)) > MAX_IMAGE_SLOTS:
+        raise WorkflowError(f"The graph has more than {MAX_IMAGE_SLOTS} Load Image nodes.")
     return graph
+
+
+def image_slots(graph: dict) -> list[ImageSlot]:
+    """Every node in an (already validated) API graph that loads a picture by file name, in the
+    graph's own order."""
+    slots = []
+    for node_id, node in graph.items():
+        if node["class_type"] not in IMAGE_INPUT_NODES or not isinstance(node["inputs"].get("image"), str):
+            continue
+        meta = node.get("_meta")
+        title = meta.get("title") if isinstance(meta, dict) else None
+        title = title.strip() if isinstance(title, str) else ""
+        slots.append(ImageSlot(node_id=node_id, title=title[:MAX_SLOT_TITLE_LEN] or node["class_type"]))
+    return slots
+
+
+def with_images(graph: dict, names: dict[str, str]) -> dict:
+    """A deep copy of graph with each slot node's "image" input set to its stored input file name
+    (node_id -> name, from storage.save_input_image)."""
+    out = copy.deepcopy(graph)
+    for node_id, name in names.items():
+        out[node_id]["inputs"]["image"] = name
+    return out
+
+
+def missing_images(graph: dict) -> list[ImageSlot]:
+    """The slots of a graph about to run that still point at a file this app never stored, i.e. at a
+    name from the machine the graph was exported on, which the GPU container will never have."""
+    return [slot for slot in image_slots(graph) if not INPUT_IMAGE_NAME_RE.match(graph[slot.node_id]["inputs"]["image"])]
+
+
+def input_images_for(data_dir: Path, graph: dict) -> dict[str, bytes]:
+    """The bytes of every stored input image a job graph references, by file name, to send along
+    with the graph. Raises MissingInputImage if one of them is gone from disk."""
+    images: dict[str, bytes] = {}
+    for node in graph.values():
+        if not isinstance(node, dict) or node.get("class_type") not in IMAGE_INPUT_NODES:
+            continue
+        inputs = node.get("inputs")
+        name = inputs.get("image") if isinstance(inputs, dict) else None
+        if not isinstance(name, str) or not INPUT_IMAGE_NAME_RE.match(name) or name in images:
+            continue
+        data = read_input_image(data_dir, name)
+        if data is None:
+            raise MissingInputImage(f"Input image {name} is no longer stored; run the workflow again with a new upload.")
+        images[name] = data
+    return images
 
 
 def seed_targets(graph: dict) -> list[tuple[str, str]]:
@@ -164,6 +236,14 @@ def _from_row(row: sqlite3.Row) -> StoredWorkflow:
     )
 
 
+def _slots_json(slots: list[ImageSlot]) -> str:
+    return json.dumps([{"node": slot.node_id, "title": slot.title} for slot in slots], ensure_ascii=False)
+
+
+def _slots_from_json(raw: str) -> tuple[ImageSlot, ...]:
+    return tuple(ImageSlot(node_id=str(item["node"]), title=str(item["title"])) for item in json.loads(raw))
+
+
 def store_workflow(
     conn: sqlite3.Connection, registry: Registry, name: str, backend_id: str, graph: dict, now: float
 ) -> int:
@@ -186,8 +266,8 @@ def store_workflow(
         raise WorkflowError(f"Unknown backend {backend_id!r}.")
     try:
         cursor = conn.execute(
-            "INSERT INTO workflows (name, backend_id, graph_json, created_at) VALUES (?, ?, ?, ?)",
-            (name, backend_id, json.dumps(graph, ensure_ascii=False), now),
+            "INSERT INTO workflows (name, backend_id, graph_json, image_inputs_json, created_at) VALUES (?, ?, ?, ?, ?)",
+            (name, backend_id, json.dumps(graph, ensure_ascii=False), _slots_json(image_slots(graph)), now),
         )
     except sqlite3.IntegrityError:
         raise WorkflowError(f"A workflow named {name!r} already exists.") from None
@@ -206,15 +286,24 @@ class WorkflowSummary:
     name: str
     backend_id: str
     created_at: float
+    image_slots: tuple[ImageSlot, ...] = ()
 
 
 def list_workflows(conn: sqlite3.Connection) -> list[WorkflowSummary]:
     """Every stored workflow for the `/workflows` list, without ever touching graph_json: selecting
     (let alone json.loads-ing) a potentially multi-megabyte column here would cost time on the event
     loop proportional to every stored graph's size, for data the list never displays."""
-    rows = conn.execute("SELECT id, name, backend_id, created_at FROM workflows ORDER BY name").fetchall()
+    rows = conn.execute(
+        "SELECT id, name, backend_id, created_at, image_inputs_json FROM workflows ORDER BY name"
+    ).fetchall()
     return [
-        WorkflowSummary(id=row["id"], name=row["name"], backend_id=row["backend_id"], created_at=row["created_at"])
+        WorkflowSummary(
+            id=row["id"],
+            name=row["name"],
+            backend_id=row["backend_id"],
+            created_at=row["created_at"],
+            image_slots=_slots_from_json(row["image_inputs_json"]),
+        )
         for row in rows
     ]
 

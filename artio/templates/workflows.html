@@ -16,6 +16,7 @@
   </select>
 
   <label for="wf-file">Workflow file (API format, .json, at most 2 MB)</label>
+  <small class="muted">Load Image nodes become image inputs you fill in each time you run the workflow (PNG, JPEG or WebP, at most 10 MB each).</small>
   <input type="file" id="wf-file" name="graph_file" accept=".json,application/json" required>
 
   <button type="submit" class="auto">Upload</button>
@@ -35,7 +36,17 @@
       <tr>
         <td>{{ wf.name }}<br><small class="muted">{{ wf.backend_id }} &middot; {{ wf.created_at | localtime }}</small></td>
         <td>
-          <form method="post" action="/workflows/{{ wf.id }}/run" class="run-form">
+          <form method="post" action="/workflows/{{ wf.id }}/run" class="run-form" enctype="multipart/form-data">
+              {% if wf.image_slots %}
+              <div class="image-slots">
+                {% for slot in wf.image_slots %}
+                <label>
+                  <span>{{ slot.title }} <small class="muted">node {{ slot.node_id }}</small></span>
+                  <input type="file" name="image:{{ slot.node_id }}" accept="image/png,image/jpeg,image/webp" required>
+                </label>
+                {% endfor %}
+              </div>
+              {% endif %}
               <select name="seed_mode" aria-label="Seed">
                 {% for mode in seed_modes %}
                 <option value="{{ mode }}">{{ mode }}</option>

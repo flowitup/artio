@@ -190,3 +190,20 @@ def test_a_413_response_still_carries_the_security_headers(app_client):
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["content-security-policy"] == "frame-ancestors 'none'"
     assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_per_pattern_override_raises_the_limit_for_matching_paths_only():
+    app = Starlette(
+        routes=[
+            Route("/echo", _echo, methods=["POST"]),
+            Route("/workflows/{wid}/run", _echo, methods=["POST"]),
+        ]
+    )
+    app.add_middleware(BodySizeLimitMiddleware, default_limit=100, per_pattern=[(r"/workflows/\d+/run", 1000)])
+    client = TestClient(app)
+
+    assert client.post("/workflows/7/run", content=b"x" * 200).status_code == 200
+    assert client.post("/workflows/7/run", content=b"x" * 1001).status_code == 413
+    assert client.post("/echo", content=b"x" * 200).status_code == 413
+    # fullmatch: a path that merely contains the pattern keeps the default limit
+    assert client.post("/workflows/abc/run", content=b"x" * 200).status_code in (404, 413)

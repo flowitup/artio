@@ -386,6 +386,14 @@ def create_workflow_batch(
             "and can no longer be run safely; delete and re-upload it."
         )
 
+    missing = custom_workflows.missing_images(workflow.graph)
+    if missing:
+        names = ", ".join(f"{slot.title} (node {slot.node_id})" for slot in missing)
+        raise ValueError(
+            f"This workflow needs an uploaded image for: {names}. Run it from the Workflows page "
+            "and choose an image for each one."
+        )
+
     targets = custom_workflows.seed_targets(workflow.graph)
     if count > 1 and not targets:
         raise ValueError(

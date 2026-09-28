@@ -600,7 +600,13 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
   `PreviewImage` node or the upload is refused with a message. Running it takes a seed mode (random,
   fixed with increments, or keep the graph's own seed -- "keep" only with a count of 1) and a count
   of 1-8; a graph with no `KSampler`/`KSamplerAdvanced`/`RandomNoise` literal seed input can only be
-  run once, since every further run would render the same image. Deleting a stored workflow does not
+  run once, since every further run would render the same image. Each `LoadImage` or `LoadImageMask`
+  node with a file-name input (at most 16) becomes a file field on the run form: the uploaded PNG,
+  JPEG or WebP (at most 10 MB and 40 MP each, in a run request capped at 50 MB) is stored once under
+  `data_dir/inputs/artio-in-<sha256>.<ext>`, the job's graph points at that name, and the worker sends
+  the bytes with the graph so the Modal backend writes them into ComfyUI's input folder first. A
+  graph whose image slots are not filled (a run through `/api/v1`, say) is refused before any batch
+  is created. Deleting a stored workflow does not
   touch any job that already ran it: each job keeps its own exact graph (`/jobs/{id}/graph.json`),
   only the link back to the deleted workflow clears. An invalid graph is rejected by ComfyUI itself
   at run time; the failed job's queue row shows its validation text verbatim, starting with

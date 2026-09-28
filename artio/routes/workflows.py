@@ -7,6 +7,7 @@ follows. Only the delete button is hx-post, since it just needs to refresh the s
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import random
 import time
@@ -16,7 +17,7 @@ from fastapi import Path as PathParam
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from starlette.datastructures import UploadFile
 
-from artio import custom_workflows, db, jobs
+from artio import custom_workflows, db, jobs, storage
 from artio.registry import Registry
 from artio.storage import DiskGuardError
 
@@ -138,6 +139,20 @@ async def run_workflow(request: Request, workflow_id: int) -> Response:
             seed = int(seed_raw)
         except ValueError:
             return rerender(f"Seed must be a whole number, got {seed_raw!r}.")
+
+    # One uploaded picture per Load Image node, sent to the GPU with every job of this batch. Field
+    # names come from the graph itself (image:<node id>), never from what the form happens to post.
+    names: dict[str, str] = {}
+    for slot in custom_workflows.image_slots(workflow.graph):
+        upload = form.get(f"image:{slot.node_id}")
+        if not isinstance(upload, UploadFile) or not upload.filename:
+            return rerender(f"Choose an image for {slot.title!r} (node {slot.node_id}).")
+        try:
+            names[slot.node_id] = storage.save_input_image(settings.data_dir, await upload.read())
+        except storage.InvalidInputImage as exc:
+            return rerender(f"{slot.title} (node {slot.node_id}): {exc}.")
+    if names:
+        workflow = dataclasses.replace(workflow, graph=custom_workflows.with_images(workflow.graph, names))
 
     try:
         with db.session(settings) as conn:

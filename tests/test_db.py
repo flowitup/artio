@@ -30,7 +30,7 @@ def test_migrate_creates_every_table_from_every_migration(settings):
         ):
             assert table in names
         version = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert [row["version"] for row in version] == [1, 2]
+        assert [row["version"] for row in version] == [1, 2, 3]
     finally:
         conn.close()
 
@@ -41,7 +41,7 @@ def test_migrate_applied_twice_is_a_no_op(settings):
     conn = db.connect(settings)
     try:
         rows = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert [row["version"] for row in rows] == [1, 2]
+        assert [row["version"] for row in rows] == [1, 2, 3]
     finally:
         conn.close()
 

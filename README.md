@@ -14,8 +14,9 @@ Access identity, either the owner's own email or the Claude plugin's service tok
   background while no page is open.
 - **Prompt library.** Save, load and delete named presets; star and tag images; search by prompt
   text or tag, combined with any filter.
-- **Custom workflows.** Upload a ComfyUI API-format graph, run it with a seed mode of its own, and
-  keep every past run's exact graph even after the stored workflow is deleted.
+- **Custom workflows.** Upload a ComfyUI API-format graph, run it with a seed mode of its own and
+  an uploaded picture for each Load Image node, and keep every past run's exact graph even after
+  the stored workflow is deleted.
 - **Claude plugin.** Drive Artio from Claude -- list models, generate, check status, search and
   fetch images, list and run stored workflows, and see GPU status -- through a versioned JSON API
   (`/api/v1`) the plugin's service token can reach and nothing else.

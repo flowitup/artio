@@ -990,9 +990,39 @@ button.auto {
 /* Custom workflows: the per-row run controls as one compact line. */
 .run-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.35rem;
   align-items: center;
   margin: 0;
+}
+
+.run-form .image-slots {
+  flex-basis: 100%;
+  display: grid;
+  gap: 0.4rem;
+  margin-bottom: 0.2rem;
+}
+
+.run-form .image-slots label {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.run-form .image-slots input[type="file"] {
+  width: 100%;
+  height: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 0.82rem;
+}
+
+.run-form .image-slots input[type="file"]::file-selector-button {
+  padding: 0.3rem 0.8rem;
+  margin: 0 0.6rem 0 0;
+  font-size: 0.82rem;
 }
 
 .run-form select,
@@ -1017,6 +1047,7 @@ button.auto {
 }
 
 .run-form button {
+  width: auto;
   margin: 0;
   height: 2.3rem;
   padding-block: 0;
