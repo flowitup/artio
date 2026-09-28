@@ -41,6 +41,7 @@
       </nav>
       <div id="header-status" class="sidebar-status" hx-get="/partials/header-status"
            hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+      <p class="sidebar-version">Artio v{{ artio_release }}</p>
       </div>
     </aside>
     <main class="{% block main_class %}page{% endblock %}">

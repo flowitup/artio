@@ -297,6 +297,14 @@ body {
   border-top: 1px solid var(--side-line);
 }
 
+.sidebar-version {
+  margin: 0.6rem 0 0;
+  padding-inline: var(--side-x);
+  color: var(--side-mute);
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
 .sidebar-status .badge {
   display: flex;
   align-items: baseline;

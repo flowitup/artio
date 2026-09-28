@@ -12,7 +12,7 @@ import time
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from artio import db
+from artio import __version__, db
 from artio.config import VOLUME_SENTINEL_NAME
 
 router = APIRouter()
@@ -50,5 +50,5 @@ async def healthz(request: Request) -> JSONResponse:
     loops = _loop_status(worker, time.time())
     healthy = db_ok and sentinel_ok and loops in ("ok", "disabled")
 
-    body = {"status": "ok" if healthy else "degraded", "version": settings.version, "loops": loops}
+    body = {"status": "ok" if healthy else "degraded", "version": settings.version, "release": __version__, "loops": loops}
     return JSONResponse(body, status_code=200 if healthy else 503)

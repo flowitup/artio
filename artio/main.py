@@ -19,7 +19,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from artio import db, gpu
+from artio import __version__, db, gpu
 from artio.auth import AccessVerifier, SecurityHeadersMiddleware, access_guard
 from artio.config import ConfigError, Settings, load_settings
 from artio.modal_gateway import ModalGateway, ModalSdkGateway
@@ -104,6 +104,7 @@ def create_app(
 
     templates = Jinja2Templates(directory=_TEMPLATES_DIR)
     templates.env.filters["localtime"] = _localtime_filter(ZoneInfo(settings.timezone))
+    templates.env.globals["artio_release"] = __version__
     app.state.templates = templates
 
     # Registration order controls middleware nesting (Starlette wraps the most-recently-added
