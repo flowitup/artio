@@ -2,12 +2,25 @@
 {% block title %}Image {{ image.id }} &middot; Artio{% endblock %}
 {% block content %}
 <h1>Image {{ image.id }}</h1>
-<img class="image-full" src="/images/{{ image.id }}/file" alt="{{ image.prompt | truncate(60) }}">
-{% include "partials/star_button.html" %}
+<div class="image-layout">
+<figure class="image-figure">
+  <img class="image-full" src="/images/{{ image.id }}/file" alt="{{ image.prompt | truncate(60) }}">
+</figure>
+<div class="image-details">
+<div class="image-actions">
+  {% include "partials/star_button.html" %}
+  <a href="/images/{{ image.id }}/file" download role="button" class="outline">Download</a>
+  {% if image.kind == 'workflow' %}
+  <a href="/jobs/{{ image.job_id }}/graph.json" download role="button" class="outline secondary">Download graph</a>
+  {% else %}
+  <a href="/generate?from={{ image.id }}" role="button" class="outline secondary">Remix</a>
+  <a href="/generate?from={{ image.id }}" role="button" class="outline secondary">Save these settings as preset</a>
+  {% endif %}
+</div>
 {% if image.kind == 'workflow' %}
 <p>Workflow: {{ image.workflow_name or 'deleted workflow' }} on {{ image.backend_id }}</p>
 {% endif %}
-<table>
+<table class="meta-table">
   <tbody>
     <tr><th>Model</th><td>{{ image.model_id or '—' }}</td></tr>
     <tr><th>Prompt</th><td>{{ image.prompt }}</td></tr>
@@ -23,16 +36,11 @@
   </tbody>
 </table>
 {% include "partials/tag_editor.html" %}
-<p>
-  <a href="/images/{{ image.id }}/file" download role="button">Download</a>
-  {% if image.kind == 'workflow' %}
-  <a href="/jobs/{{ image.job_id }}/graph.json" download role="button" class="secondary">Download graph</a>
-  {% else %}
-  <a href="/generate?from={{ image.id }}" role="button" class="secondary">Remix</a>
-  <a href="/generate?from={{ image.id }}" role="button" class="secondary">Save these settings as preset</a>
-  {% endif %}
+<p class="danger-zone">
   <button hx-post="/images/{{ image.id }}/delete"
           hx-confirm="Delete this image? It is removed from Artio now, with its prompt and job record. There are no backups, so this cannot be undone."
-          class="contrast">Delete</button>
+          class="outline danger">Delete image</button>
 </p>
+</div>
+</div>
 {% endblock %}

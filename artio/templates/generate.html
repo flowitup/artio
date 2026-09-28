@@ -3,7 +3,7 @@
 {% block content %}
 <h1>Generate</h1>
 {% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
-<form method="post" action="/generate">
+<form method="post" action="/generate" class="narrow-form">
   <label for="model_id">Model</label>
   <select id="model_id" name="model_id" hx-get="/generate/params" hx-target="#gen-params" hx-swap="innerHTML"
           hx-trigger="change">
@@ -25,7 +25,7 @@
   <label for="count">Count</label>
   <input type="number" id="count" name="count" min="1" max="8" value="{{ values.count or 1 }}">
 
-  <button type="submit">Generate</button>
+  <button type="submit" class="auto">Generate</button>
 
   <fieldset role="group">
     <input type="text" name="preset_name" placeholder="Preset name" aria-label="Preset name">
@@ -35,5 +35,5 @@
   </fieldset>
   <div id="preset-status"></div>
 </form>
-<p><a href="/library">Prompt library</a></p>
+<p><a href="/library">Saved presets</a></p>
 {% endblock %}

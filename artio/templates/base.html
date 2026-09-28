@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/static/pico.min.css">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js"></script>
+  <script src="/static/app.js" defer></script>
 </head>
 <body>
   <div class="shell">
@@ -17,7 +18,11 @@
         <a href="/chat" class="new-chat" role="button">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New chat
         </a>
+        <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="sidebar-body" aria-label="Menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
       </div>
+      <div class="sidebar-body" id="sidebar-body">
       <nav class="sidebar-section" aria-label="Conversations">
         <span class="sidebar-label">Conversations</span>
         <div id="chat-sessions" hx-get="/partials/chat-sessions{% block current_session %}{% endblock %}"
@@ -36,6 +41,7 @@
       </nav>
       <div id="header-status" class="sidebar-status" hx-get="/partials/header-status"
            hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+      </div>
     </aside>
     <main class="{% block main_class %}page{% endblock %}">
       <div id="flash"></div>

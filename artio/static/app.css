@@ -36,6 +36,10 @@
   --artio-accent: #7a3fd1;
   --artio-accent-hover: #6630b8;
   --artio-accent-soft: #efe7fb;
+  --artio-accent-button: #7a3fd1;
+  --artio-accent-button-hover: #6630b8;
+  --artio-field: #ffffff;
+  --artio-danger: #c0392b;
   --artio-bubble: #221f27;
   --artio-bubble-ink: #f6f4f8;
 }
@@ -51,8 +55,13 @@
     --artio-accent: #b48cf2;
     --artio-accent-hover: #c6a6f6;
     --artio-accent-soft: #2e2440;
-    --artio-bubble: #ece9f0;
-    --artio-bubble-ink: #1c1a20;
+    /* Buttons keep a deep violet in dark mode: white text on the pale link violet is unreadable. */
+    --artio-accent-button: #7c4ddb;
+    --artio-accent-button-hover: #8d62e6;
+    --artio-field: #1d1a23;
+    --artio-danger: #ff8a7a;
+    --artio-bubble: #2e2440;
+    --artio-bubble-ink: #f3effa;
   }
 }
 
@@ -67,15 +76,20 @@
   --pico-muted-border-color: var(--artio-line);
   --pico-card-background-color: var(--artio-raise);
   --pico-primary: var(--artio-accent);
-  --pico-primary-background: var(--artio-accent);
-  --pico-primary-border: var(--artio-accent);
+  --pico-primary-background: var(--artio-accent-button);
+  --pico-primary-border: var(--artio-accent-button);
   --pico-primary-underline: color-mix(in srgb, var(--artio-accent) 50%, transparent);
   --pico-primary-hover: var(--artio-accent-hover);
-  --pico-primary-hover-background: var(--artio-accent-hover);
-  --pico-primary-hover-border: var(--artio-accent-hover);
+  --pico-primary-hover-background: var(--artio-accent-button-hover);
+  --pico-primary-hover-border: var(--artio-accent-button-hover);
   --pico-primary-focus: color-mix(in srgb, var(--artio-accent) 30%, transparent);
   --pico-primary-inverse: #fff;
   --pico-border-radius: 0.6rem;
+  --pico-form-element-background-color: var(--artio-field);
+  --pico-form-element-selected-background-color: var(--artio-field);
+  --pico-form-element-active-background-color: var(--artio-field);
+  --pico-form-element-border-color: var(--artio-line);
+  --pico-table-border-color: var(--artio-line);
 }
 
 body {
@@ -183,6 +197,18 @@ body {
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.menu-toggle {
+  display: none;
+}
+
+.sidebar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
 }
 
 .sidebar-section {
@@ -317,39 +343,81 @@ body {
 main.page {
   padding: 1.5rem 2.25rem 2rem;
   min-width: 0;
+  max-width: 72rem;
 }
 
+/* Phone: the sidebar becomes a slim top bar (brand, New chat, menu button); the menu button opens
+   the rest of it (conversations, library, status) as a panel under the bar. */
 @media (max-width: 800px) {
   .shell {
     grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
   }
 
   .sidebar {
-    position: static;
+    position: sticky;
+    top: 0;
+    z-index: 10;
     height: auto;
-    padding: 1rem;
-    gap: 0.9rem;
+    max-height: 100vh;
+    padding: 0.6rem 0.75rem;
+    gap: 0;
   }
 
   .sidebar-top {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
+    gap: 0.5rem;
+  }
+
+  .brand {
+    margin-right: auto;
+    padding-inline: 0.25rem;
   }
 
   .sidebar .new-chat {
     width: auto;
+    padding: 0.4rem 0.8rem;
   }
 
-  .sidebar ul.sidebar-links {
-    flex-direction: row;
-    overflow-x: auto;
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 2.4rem;
+    margin: 0;
+    padding: 0;
+    background: var(--side-hover);
+    border: 1px solid var(--side-line);
+    border-radius: 0.6rem;
+    color: var(--side-ink);
+  }
+
+  .menu-toggle:hover,
+  .menu-toggle:focus {
+    background: var(--side-active);
+    border-color: var(--side-line);
+    color: var(--side-ink);
+  }
+
+  .sidebar .menu-toggle svg {
+    width: 1.3rem;
+    height: 1.3rem;
+  }
+
+  .sidebar-body {
+    display: none;
+    padding-top: 1rem;
+    overflow-y: auto;
+  }
+
+  .sidebar.open .sidebar-body {
+    display: flex;
   }
 
   .sidebar-status {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.4rem 1rem;
+    margin-top: 0;
   }
 
   main.page {
@@ -373,9 +441,12 @@ main.chat {
 }
 
 .chat-header h1 {
-  font-size: 1.35rem;
+  font-size: 1.15rem;
   margin: 0;
-  overflow-wrap: anywhere;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .chat-delete {
@@ -544,6 +615,19 @@ main.chat {
   margin-bottom: 0;
 }
 
+/* On a phone a sticky composer would cover most of the screen; it sits after the last turn instead. */
+@media (max-width: 800px) {
+  .composer {
+    position: static;
+    box-shadow: none;
+  }
+
+  .composer-row .estimate {
+    flex-basis: 100%;
+    order: 1;
+  }
+}
+
 .composer textarea {
   margin: 0;
   resize: vertical;
@@ -650,6 +734,285 @@ main.chat {
 }
 
 /* ---------- Existing pages ---------- */
+/* Buttons inside tables and action rows are compact and sized to their label. */
+td button,
+td [role="button"],
+.image-actions button,
+.image-actions [role="button"],
+.danger-zone button {
+  width: auto;
+  margin: 0 0.25rem 0.25rem 0;
+  padding: 0.35rem 0.85rem;
+  font-size: 0.88rem;
+}
+
+button.danger,
+[role="button"].danger {
+  --pico-color: var(--artio-danger);
+  --pico-border-color: var(--artio-danger);
+  color: var(--artio-danger);
+  border-color: var(--artio-danger);
+  background: transparent;
+}
+
+button.danger:hover,
+[role="button"].danger:hover {
+  background: color-mix(in srgb, var(--artio-danger) 12%, transparent);
+  color: var(--artio-danger);
+  border-color: var(--artio-danger);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: var(--pico-spacing);
+}
+
+.table-wrap table {
+  margin-bottom: 0;
+  font-size: 0.92rem;
+}
+
+.table-wrap th,
+.table-wrap td {
+  padding: 0.55rem 0.6rem;
+}
+
+td,
+th {
+  vertical-align: middle;
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.jobs-table .prompt-cell {
+  min-width: 12rem;
+}
+
+.jobs-table td:first-child {
+  min-width: 7rem;
+}
+
+.jobs-table .thumb {
+  display: block;
+  max-height: 4.5rem;
+  width: auto;
+}
+
+.row-actions:not(:empty) {
+  margin-top: 0.35rem;
+}
+
+.row-actions button {
+  margin: 0;
+}
+
+.muted {
+  color: var(--artio-mute);
+}
+
+.narrow-form {
+  max-width: 40rem;
+}
+
+button.auto {
+  width: auto;
+  padding-inline: 1.5rem;
+}
+
+/* Generate form: the custom size and fixed seed number inputs sit inline in their radio labels. */
+#gen-params fieldset label input[type="number"] {
+  display: inline-block;
+  width: 7.5rem;
+  height: auto;
+  margin: 0 0.35rem;
+  padding: 0.3rem 0.6rem;
+}
+
+.inline-field {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.inline-field input {
+  flex: 1;
+  margin: 0;
+}
+
+.inline-field button {
+  width: auto;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* Gallery filters: one wrapping row of equal-height controls. */
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+}
+
+.filters input:not([type="checkbox"]),
+.filters select {
+  flex: 1 1 10rem;
+  width: auto;
+  margin: 0;
+  height: 2.6rem;
+  padding-block: 0;
+}
+
+.filters input[type="search"] {
+  flex-basis: 16rem;
+}
+
+.filters .check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 0.5rem;
+  white-space: nowrap;
+}
+
+.filters .check input {
+  margin: 0;
+}
+
+.filters button {
+  width: auto;
+  height: 2.6rem;
+  margin: 0;
+  padding-block: 0;
+  padding-inline: 1.25rem;
+}
+
+.batch-group {
+  margin-bottom: 1.75rem;
+}
+
+.batch-head {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  margin-bottom: 0.6rem;
+}
+
+.batch-head a {
+  color: var(--artio-ink);
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.batch-head a:hover {
+  color: var(--artio-accent);
+}
+
+.batch-head small {
+  color: var(--artio-mute);
+}
+
+.pager ul {
+  display: flex;
+  gap: 1rem;
+  padding: 0;
+}
+
+/* Image page: the picture on the left, its details and actions on the right; stacked on phones. */
+.image-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+  gap: 2rem;
+  align-items: start;
+}
+
+.image-figure {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  background: var(--artio-side);
+  border-radius: var(--pico-border-radius);
+}
+
+.image-figure .image-full {
+  max-height: calc(100vh - 7rem);
+  object-fit: contain;
+}
+
+.image-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.image-actions #star-button {
+  display: contents;
+}
+
+.meta-table th {
+  vertical-align: top;
+  color: var(--artio-mute);
+  font-weight: 500;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.meta-table td {
+  overflow-wrap: anywhere;
+}
+
+.meta-table th,
+.meta-table td {
+  padding-block: 0.45rem;
+  font-size: 0.92rem;
+}
+
+@media (max-width: 1000px) {
+  .image-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Custom workflows: the per-row run controls as one compact line. */
+.run-form {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin: 0;
+}
+
+.run-form select,
+.run-form input {
+  width: auto;
+  height: 2.3rem;
+  margin: 0;
+  padding: 0 0.6rem;
+  font-size: 0.88rem;
+}
+
+.run-form select {
+  padding-right: 2rem;
+}
+
+.run-form input[name="seed"] {
+  width: 6rem;
+}
+
+.run-form input[name="count"] {
+  width: 4rem;
+}
+
+.run-form button {
+  margin: 0;
+  height: 2.3rem;
+  padding-block: 0;
+}
 .thumb-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -724,9 +1087,10 @@ main.chat {
   width: auto;
 }
 
-/* Prompt library and custom workflows: keep per-row action buttons compact and on one line. */
+/* Presets and custom workflows: keep per-row action buttons on one line. */
 #library-content table td:last-child,
-#workflow-list table td:last-child {
+#workflow-list table td:last-child,
+#library-content table td:nth-child(3) {
   white-space: nowrap;
 }
 
@@ -734,6 +1098,20 @@ main.chat {
   margin-bottom: 0;
 }
 
+.star-button {
+  --pico-color: var(--artio-ink);
+  background: transparent;
+  color: var(--artio-ink);
+  border-color: var(--artio-line);
+}
+
+.star-button:hover {
+  background: var(--artio-accent-soft);
+  color: var(--artio-ink);
+  border-color: var(--artio-line);
+}
+
 .star-button.starred {
   color: #b8860b;
+  border-color: #d9b44a;
 }

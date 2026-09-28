@@ -5,7 +5,7 @@
 {% block content %}
 {% set c = composer %}
 <header class="chat-header">
-  <h1>{{ session.title if session else 'New chat' }}</h1>
+  <h1 title="{{ session.title if session else 'New chat' }}">{{ session.title if session else 'New chat' }}</h1>
   {% if session %}
   <button type="button" class="outline secondary chat-delete" hx-post="/chat/{{ session.id }}/delete"
           hx-confirm="Remove this conversation? Its images stay in the gallery.">Remove</button>
@@ -78,7 +78,7 @@
     <span class="estimate">
       {% if c.per_image_cost_usd %}{% if c.per_image_cost_usd < 0.01 %}under $0.01 per image{% else %}≈ ${{ '%.2f' % c.per_image_cost_usd }} per image{% endif %}{% endif %}
     </span>
-    <button type="submit">Send</button>
+    <button type="submit" title="Send (Ctrl+Enter)">Send</button>
   </div>
 
   <details class="advanced">
