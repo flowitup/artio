@@ -630,9 +630,8 @@ main.chat {
     box-shadow: none;
   }
 
-  .composer-row .estimate {
+  .size-readout {
     flex-basis: 100%;
-    order: 1;
   }
 }
 
@@ -649,9 +648,69 @@ main.chat {
   gap: 0.6rem;
 }
 
-/* Shape and resolution sit side by side on a wide screen; Pico makes every fieldset full width. */
-.composer-row .pills {
+/* Shape and resolution: two joined switches. Pico makes every fieldset full width, so undo that. */
+.seg {
+  display: inline-flex;
   width: auto;
+  gap: 2px;
+  margin: 0;
+  padding: 2px;
+  border: 1px solid var(--artio-line);
+  border-radius: 10px;
+}
+
+.seg label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  padding: 0.25rem 0.7rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: var(--artio-mute);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.seg input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.seg label:has(input:checked) {
+  background: var(--artio-accent-soft);
+  color: var(--artio-ink);
+  font-weight: 600;
+}
+
+.seg label:has(input:focus-visible) {
+  outline: 2px solid var(--artio-accent);
+  outline-offset: 1px;
+}
+
+/* A shape drawn at its own proportions. */
+.glyph {
+  display: inline-block;
+  border: 1.5px solid currentColor;
+  border-radius: 2px;
+}
+
+.glyph-tall { width: 0.55rem; height: 0.9rem; }
+.glyph-wide { width: 0.9rem; height: 0.55rem; }
+.glyph-square { width: 0.72rem; height: 0.72rem; }
+
+.size-readout {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--artio-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.size-readout .estimate:not(:empty)::before {
+  content: "· ";
 }
 
 .composer-row button {
@@ -711,12 +770,6 @@ main.chat {
   padding: 0.2rem 2rem 0.2rem 0.6rem;
   height: auto;
   font-size: 0.85rem;
-}
-
-.estimate {
-  font-size: 0.8rem;
-  color: var(--artio-mute);
-  font-variant-numeric: tabular-nums;
 }
 
 .advanced {
