@@ -11,3 +11,10 @@ pico.min.css
   package: @picocss/pico 2.1.1 (file css/pico.min.css)
   source:  https://cdn.jsdelivr.net/npm/@picocss/pico@2.1.1/css/pico.min.css
   sha256:  fbc9a63fc9fc9f72d12fd7fc9806e11fa9f77ae4f9cad146b27003a1119ba3db
+
+fonts/albert-sans-latin-wght-normal.woff2, fonts/albert-sans-latin-ext-wght-normal.woff2
+  package: @fontsource-variable/albert-sans 5.3.0 (files files/albert-sans-*-wght-normal.woff2)
+  source:  https://registry.npmjs.org/@fontsource-variable/albert-sans/-/albert-sans-5.3.0.tgz
+  license: SIL Open Font License 1.1 (fonts/albert-sans-OFL.txt)
+  sha256:  c2fb6fda415c7bf5926c15aa98f759da45cdc5ac4ac6925a72a84db4eb3862a3 (latin)
+           78b26c5d5d82248eb13ceeb4e6598b1e4248851f3c8622b12d57571539486816 (latin-ext)
