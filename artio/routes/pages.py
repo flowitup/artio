@@ -1,4 +1,4 @@
-"""Home redirect, gallery, batch detail and the polled header-status partial."""
+"""Home redirect (to the latest conversation), gallery, batch detail and the polled header-status partial."""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 
 from artio import db, gpu, library, storage
 from artio.registry import Registry
+from artio.routes.chat import home_url
 
 router = APIRouter()
 
@@ -22,8 +23,10 @@ _MAX_PAGE = 10**12
 
 
 @router.get("/")
-async def home() -> RedirectResponse:
-    return RedirectResponse("/generate", status_code=303)
+async def home(request: Request) -> RedirectResponse:
+    with db.session(request.app.state.settings) as conn:
+        url = home_url(conn)
+    return RedirectResponse(url, status_code=303)
 
 
 def _gallery_url(*, model: str | None, q: str | None, tag: str | None, starred: bool, page: int) -> str:

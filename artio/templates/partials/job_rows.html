@@ -8,7 +8,8 @@
   {% if not jobs %}
   <p>No jobs yet.</p>
   {% else %}
-  <table>
+  <div class="table-wrap">
+  <table class="jobs-table">
     <thead>
       <tr>
         <th>Status</th>
@@ -17,7 +18,6 @@
         <th>Seed</th>
         <th>Elapsed</th>
         <th>Result</th>
-        <th></th>
       </tr>
     </thead>
     <tbody>
@@ -32,9 +32,19 @@
           <br><small>Cancelled.</small>
           {% endif %}
           {% if job.status == 'failed' and job.error %}<br><small class="error-text">{{ job.error }}</small>{% endif %}
+          <div class="row-actions">
+          {% if job.status in ('queued', 'submitted') %}
+          <button hx-post="/jobs/{{ job.id }}/cancel{% if batch_id %}?batch={{ batch_id }}{% endif %}"
+                  hx-target="#jobs-panel" hx-swap="outerHTML" class="outline secondary">Cancel</button>
+          {% endif %}
+          {% if job.status in ('failed', 'cancelled') %}
+          <button hx-post="/jobs/{{ job.id }}/retry{% if batch_id %}?batch={{ batch_id }}{% endif %}"
+                  hx-target="#jobs-panel" hx-swap="outerHTML" class="outline">Retry</button>
+          {% endif %}
+          </div>
         </td>
-        <td>{{ job.model_id or 'custom workflow' }}</td>
-        <td>{{ job.prompt_excerpt }}</td>
+        <td class="nowrap">{{ job.model_id or 'custom workflow' }}</td>
+        <td class="prompt-cell">{{ job.prompt_excerpt }}</td>
         <td>{{ job.seed }}</td>
         <td>{% if job.status == 'cancelled' %}—{% else %}{{ job.elapsed_s }}s{% endif %}</td>
         <td>
@@ -42,19 +52,10 @@
           <a href="/images/{{ job.image_id }}"><img class="thumb" src="/images/{{ job.image_id }}/thumb" alt=""></a>
           {% endif %}
         </td>
-        <td>
-          {% if job.status in ('queued', 'submitted') %}
-          <button hx-post="/jobs/{{ job.id }}/cancel{% if batch_id %}?batch={{ batch_id }}{% endif %}"
-                  hx-target="#jobs-panel" hx-swap="outerHTML">Cancel</button>
-          {% endif %}
-          {% if job.status in ('failed', 'cancelled') %}
-          <button hx-post="/jobs/{{ job.id }}/retry{% if batch_id %}?batch={{ batch_id }}{% endif %}"
-                  hx-target="#jobs-panel" hx-swap="outerHTML">Retry</button>
-          {% endif %}
-        </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% endif %}
 </div>

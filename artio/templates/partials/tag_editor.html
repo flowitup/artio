@@ -5,7 +5,9 @@
 {% endif %}
 <form id="tag-editor" hx-post="/images/{{ image.id }}/tags" hx-target="#tag-editor" hx-swap="outerHTML">
   <label for="tags">Tags</label>
-  <input type="text" id="tags" name="tags" value="{{ shown_tags }}" placeholder="comma, separated, tags">
-  <button type="submit">Save tags</button>
+  <div class="inline-field">
+    <input type="text" id="tags" name="tags" value="{{ shown_tags }}" placeholder="comma, separated, tags">
+    <button type="submit" class="outline">Save tags</button>
+  </div>
   {% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
 </form>

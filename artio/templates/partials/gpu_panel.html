@@ -55,7 +55,7 @@
     </form>
     <form hx-post="/gpu/{{ card.backend.id }}/stop" hx-target="#gpu-panel" hx-swap="outerHTML"
           hx-sync="closest #gpu-panel:replace">
-      <button type="submit">Stop</button>
+      <button type="submit" class="outline danger">Stop</button>
     </form>
   </article>
   {% endfor %}

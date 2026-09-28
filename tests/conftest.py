@@ -160,7 +160,7 @@ _ROUTE_IDS_GRAPH = {
 def route_ids(conn, registry, settings, fake_gateway, rng, png_bytes) -> dict[str, int]:
     """Seeds one finished job and its image, one preset and one stored workflow directly through the
     engine (not the app), so route_ids has a real row for every path-parameter name a GET route uses:
-    image_id, batch_id, job_id, preset_id, workflow_id."""
+    image_id, batch_id, job_id, preset_id, workflow_id, session_id."""
     model = next(iter(registry.models.values()))
     size = model.param_schema.default_size()
     request = jobs.BatchRequest(
@@ -207,10 +207,18 @@ def route_ids(conn, registry, settings, fake_gateway, rng, png_bytes) -> dict[st
     )
     conn.commit()
 
+    now = time.time()
+    session_id = conn.execute(
+        "INSERT INTO chat_sessions (title, created_at, updated_at) VALUES ('route ids chat', ?, ?)", (now, now)
+    ).lastrowid
+    conn.execute("UPDATE batches SET session_id = ?, message = 'route ids fixture' WHERE id = ?", (session_id, batch_id))
+    conn.commit()
+
     return {
         "image_id": image["id"],
         "batch_id": batch_id,
         "job_id": job["id"],
         "preset_id": preset_id,
         "workflow_id": workflow_id,
+        "session_id": session_id,
     }

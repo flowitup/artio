@@ -2,11 +2,10 @@
 {% block title %}Gallery &middot; Artio{% endblock %}
 {% block content %}
 <h1>Gallery</h1>
-<form method="get" action="/gallery">
-  <fieldset role="group">
-    <input type="search" name="q" value="{{ q }}" placeholder="Search prompt or tags">
-    <input type="text" name="tag" value="{{ tag }}" placeholder="Tag">
-    <select name="model">
+<form method="get" action="/gallery" class="filters">
+    <input type="search" name="q" value="{{ q }}" placeholder="Search prompt or tags" aria-label="Search prompt or tags">
+    <input type="text" name="tag" value="{{ tag }}" placeholder="Tag" aria-label="Tag">
+    <select name="model" aria-label="Model">
       <option value="">All models</option>
       {% for m in models %}
       <option value="{{ m.id }}" {% if m.id == selected_model %}selected{% endif %}>{{ m.label }}</option>
@@ -15,12 +14,11 @@
         Custom workflows
       </option>
     </select>
-    <label>
+    <label class="check">
       <input type="checkbox" name="starred" value="1" {% if starred %}checked{% endif %}>
       Starred only
     </label>
     <button type="submit">Filter</button>
-  </fieldset>
 </form>
 
 {% if not groups %}
@@ -28,12 +26,12 @@
 {% endif %}
 
 {% for group in groups %}
-<section>
-  <header>
-    <a href="/batches/{{ group.batch_id }}"><strong>{% if group.model_id is none %}workflow: {{ group.workflow_name or 'deleted workflow' }}{% else %}{{ group.prompt | truncate(80) }}{% endif %}</strong></a>
-    &middot; {{ group.model_id or 'custom workflow' }}
-    &middot; {{ group.images | length }} image{{ 's' if group.images | length != 1 else '' }}
-    &middot; {{ group.created_at | localtime }}
+<section class="batch-group">
+  <header class="batch-head">
+    <a href="/batches/{{ group.batch_id }}">{% if group.model_id is none %}workflow: {{ group.workflow_name or 'deleted workflow' }}{% else %}{{ group.prompt | truncate(80) }}{% endif %}</a>
+    <small>{{ group.model_id or 'custom workflow' }}
+      &middot; {{ group.images | length }} image{{ 's' if group.images | length != 1 else '' }}
+      &middot; {{ group.created_at | localtime }}</small>
   </header>
   <div class="thumb-grid">
     {% for image in group.images %}
@@ -43,7 +41,7 @@
 </section>
 {% endfor %}
 
-<nav>
+<nav class="pager">
   <ul>
     {% if prev_url %}<li><a href="{{ prev_url }}">Previous</a></li>{% endif %}
     {% if next_url %}<li><a href="{{ next_url }}">Next</a></li>{% endif %}

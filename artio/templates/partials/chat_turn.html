@@ -1,0 +1,43 @@
+<article class="turn" id="turn-{{ turn.batch_id }}"
+         {% if turn.active %}hx-get="/chat/turns/{{ turn.batch_id }}" hx-trigger="every 2s" hx-swap="outerHTML"{% endif %}>
+  <p class="bubble">{{ turn.message or turn.prompt }}</p>
+  <div class="reply">
+    <div class="tiles">
+      {% for job in turn.jobs %}
+      <div class="tile tile-{{ job.status }}" style="aspect-ratio: {{ turn.width }} / {{ turn.height }}">
+        {% if job.image_id %}
+        <a href="/images/{{ job.image_id }}" class="tile-image">
+          <img src="/images/{{ job.image_id }}/thumb" alt="Result {{ loop.index }}, seed {{ job.seed }}" loading="lazy">
+        </a>
+        {% if session_id %}
+        <a href="/chat/{{ session_id }}?refine={{ job.image_id }}#composer" class="tile-action">Refine</a>
+        {% endif %}
+        {% elif job.status == 'submitted' %}
+        <span class="tile-note">Rendering</span>
+        {% elif job.status == 'queued' %}
+        <span class="tile-note">Queued</span>
+        {% elif job.status == 'failed' %}
+        <span class="tile-note error-text" title="{{ job.error or '' }}">Failed</span>
+        {% else %}
+        <span class="tile-note">Cancelled</span>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    <p class="turn-meta">
+      {% if turn.active %}{{ turn.done_count }} of {{ turn.jobs | length }} done &middot; {% endif %}
+      {{ turn.width }}&times;{{ turn.height }} &middot; {{ turn.steps }} steps &middot; CFG {{ turn.cfg }}
+      {%- if turn.seed_label %} &middot; {{ turn.seed_label }}{% endif %}
+      {%- if turn.duration_s is not none %} &middot; {{ turn.duration_s | round | int }} s GPU{% endif %}
+      {%- if turn.est_cost_usd is not none %} &middot; ${{ '%.2f' % turn.est_cost_usd }}{% endif %}
+      &middot; <a href="/batches/{{ turn.batch_id }}">Batch</a>
+      {%- if turn.jobs | selectattr('status', 'equalto', 'failed') | list %} &middot; <a href="/queue?batch={{ turn.batch_id }}">Retry failed</a>{% endif %}
+    </p>
+    {% if turn.message and turn.message != turn.prompt %}
+    <details class="turn-prompt">
+      <summary>Full prompt</summary>
+      <p>{{ turn.prompt }}</p>
+    </details>
+    {% endif %}
+  </div>
+</article>

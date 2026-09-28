@@ -22,8 +22,8 @@ PLUGIN_CLIENT_ID_SENTINEL = "plugin-client-id-should-never-appear-in-any-page"
 
 SENTINELS = (MODAL_TOKEN_SECRET_SENTINEL, CF_AUD_SENTINEL, PLUGIN_CLIENT_ID_SENTINEL)
 
-# The only GET route that is itself a polling partial: it legitimately answers 286 once idle.
-POLLING_PARTIAL_PATHS = {"/queue/rows"}
+# The GET routes that are polling partials: they legitimately answer 286 once idle.
+POLLING_PARTIAL_PATHS = {"/queue/rows", "/chat/turns/{batch_id}"}
 
 
 def _fill(path: str, route_ids: dict[str, int]) -> str:
@@ -60,11 +60,11 @@ def test_pages_hide_secrets(monkeypatch, settings, registry, fake_gateway, acces
             assert "{" not in path, f"route_ids has no value for a path parameter in {ctx.path}"
 
             headers = service_headers if path.startswith("/api/v1") else owner_headers
-            # follow_redirects: "/" redirects to /generate. A page returning only 403s (auth broken)
+            # follow_redirects: "/" redirects to the latest chat. A page returning only 403s (auth broken)
             # must not pass this crawl just because a 403 body happens to contain no secret.
             response = client.get(path, headers=headers, follow_redirects=True)
             visited += 1
-            expected = (200, 286) if path in POLLING_PARTIAL_PATHS else (200,)
+            expected = (200, 286) if ctx.path in POLLING_PARTIAL_PATHS else (200,)
             assert response.status_code in expected, f"unexpected status {response.status_code} on GET {path}"
             for sentinel in SENTINELS:
                 assert sentinel not in response.text, f"{sentinel!r} leaked on GET {path}"

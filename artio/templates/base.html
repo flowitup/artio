@@ -8,27 +8,45 @@
   <link rel="stylesheet" href="/static/pico.min.css">
   <link rel="stylesheet" href="/static/app.css">
   <script src="/static/htmx.min.js"></script>
+  <script src="/static/app.js" defer></script>
 </head>
 <body>
-  <header class="container">
-    <nav>
-      <ul>
-        <li><strong>Artio</strong></li>
-      </ul>
-      <ul>
-        <li><a href="/generate">Generate</a></li>
-        <li><a href="/queue">Queue</a></li>
-        <li><a href="/gallery">Gallery</a></li>
-        <li><a href="/library">Library</a></li>
-        <li><a href="/workflows">Workflows</a></li>
-        <li><a href="/gpu">GPU</a></li>
-      </ul>
-    </nav>
-    <div id="header-status" hx-get="/partials/header-status" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
-  </header>
-  <main class="container">
-    <div id="flash"></div>
-    {% block content %}{% endblock %}
-  </main>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <a href="/" class="brand"><span class="brand-mark" aria-hidden="true"></span>Artio</a>
+        <a href="/chat" class="new-chat" role="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>New chat
+        </a>
+        <button type="button" class="menu-toggle" aria-expanded="false" aria-controls="sidebar-body" aria-label="Menu">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+        </button>
+      </div>
+      <div class="sidebar-body" id="sidebar-body">
+      <nav class="sidebar-section" aria-label="Conversations">
+        <span class="sidebar-label">Conversations</span>
+        <div id="chat-sessions" hx-get="/partials/chat-sessions{% block current_session %}{% endblock %}"
+             hx-trigger="load" hx-swap="innerHTML"></div>
+      </nav>
+      <nav class="sidebar-section" aria-label="Library">
+        <span class="sidebar-label">Library</span>
+        <ul class="sidebar-links">
+          <li><a href="/gallery"{% if request.url.path.startswith('/gallery') %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>Gallery</span></a></li>
+          <li><a href="/library"{% if request.url.path.startswith('/library') %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 4h9l3 3v13H6z"/><path d="M9 11h6M9 15h6"/></svg><span>Presets</span></a></li>
+          <li><a href="/workflows"{% if request.url.path.startswith('/workflows') %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="2.5"/><circle cx="18" cy="7" r="2.5"/><circle cx="12" cy="18" r="2.5"/><path d="M8 8.5l3 7M16 8.5l-3 7"/></svg><span>Workflows</span></a></li>
+          <li><a href="/queue"{% if request.url.path.startswith('/queue') %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span>Queue</span></a></li>
+          <li><a href="/gpu"{% if request.url.path.startswith('/gpu') %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/><path d="M9 2v4M15 2v4M9 18v4M15 18v4M2 9h4M2 15h4M18 9h4M18 15h4"/></svg><span>GPU</span></a></li>
+          <li><a href="/generate"{% if request.url.path.startswith('/generate') %} aria-current="page"{% endif %}><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg><span>Full generate form</span></a></li>
+        </ul>
+      </nav>
+      <div id="header-status" class="sidebar-status" hx-get="/partials/header-status"
+           hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+      </div>
+    </aside>
+    <main class="{% block main_class %}page{% endblock %}">
+      <div id="flash"></div>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 </body>
 </html>

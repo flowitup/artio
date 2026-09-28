@@ -4,7 +4,7 @@
 <h1>Custom workflows</h1>
 {% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
 
-<form method="post" action="/workflows" enctype="multipart/form-data">
+<form method="post" action="/workflows" enctype="multipart/form-data" class="narrow-form">
   <label for="wf-name">Name</label>
   <input type="text" id="wf-name" name="name" value="{{ name }}" required>
 
@@ -18,48 +18,46 @@
   <label for="wf-file">Workflow file (API format, .json, at most 2 MB)</label>
   <input type="file" id="wf-file" name="graph_file" accept=".json,application/json" required>
 
-  <button type="submit">Upload</button>
+  <button type="submit" class="auto">Upload</button>
 </form>
 
 <div id="workflow-list">
   {% if not workflows %}
   <p>No workflows uploaded yet.</p>
   {% else %}
+  <div class="table-wrap">
   <table>
     <thead>
-      <tr><th>Name</th><th>Backend</th><th>Uploaded</th><th>Run</th><th></th></tr>
+      <tr><th>Workflow</th><th>Run</th><th></th></tr>
     </thead>
     <tbody>
       {% for wf in workflows %}
       <tr>
-        <td>{{ wf.name }}</td>
-        <td>{{ wf.backend_id }}</td>
-        <td>{{ wf.created_at | localtime }}</td>
+        <td>{{ wf.name }}<br><small class="muted">{{ wf.backend_id }} &middot; {{ wf.created_at | localtime }}</small></td>
         <td>
-          <form method="post" action="/workflows/{{ wf.id }}/run">
-            <fieldset role="group">
-              <select name="seed_mode">
+          <form method="post" action="/workflows/{{ wf.id }}/run" class="run-form">
+              <select name="seed_mode" aria-label="Seed">
                 {% for mode in seed_modes %}
                 <option value="{{ mode }}">{{ mode }}</option>
                 {% endfor %}
               </select>
               <input type="number" name="seed" placeholder="seed" min="0" aria-label="fixed seed">
-              <input type="number" name="count" min="1" max="8" value="1" aria-label="count">
+              <input type="number" name="count" min="1" max="8" value="1" aria-label="count" title="Images">
               <button type="submit">Run</button>
-            </fieldset>
           </form>
         </td>
         <td>
-          <a href="/workflows/{{ wf.id }}/download" download role="button" class="secondary">Download</a>
+          <a href="/workflows/{{ wf.id }}/download" download role="button" class="outline secondary">Download</a>
           <button hx-post="/workflows/{{ wf.id }}/delete"
                   hx-confirm="Delete workflow '{{ wf.name }}'?"
                   hx-target="#workflow-list" hx-select="#workflow-list" hx-swap="outerHTML"
-                  class="contrast">Delete</button>
+                  class="outline danger">Delete</button>
         </td>
       </tr>
       {% endfor %}
     </tbody>
   </table>
+  </div>
   {% endif %}
 </div>
 {% endblock %}
