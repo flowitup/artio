@@ -280,7 +280,7 @@ def test_migration_backfills_slots_for_workflows_stored_before_it(settings):
         )
         migration = (Path(db.__file__).parent / "migrations" / "0003_workflow_image_inputs.sql").read_text()
         conn.execute(migration[migration.index("UPDATE workflows") :])
-        (summary,) = custom_workflows.list_workflows(conn)
+        (summary,) = [s for s in custom_workflows.list_workflows(conn) if s.name == "old"]
     finally:
         conn.close()
     assert summary.image_slots == tuple(custom_workflows.image_slots(EDIT_GRAPH))
