@@ -60,11 +60,19 @@ def settings(tmp_path) -> Settings:
     )
 
 
+def migrate_without_starters(settings: Settings) -> None:
+    """Migrates, then removes the starter workflows migration 0004 stores, so every test starts from an
+    empty Workflows page. tests/test_starter_workflows.py covers those rows on their own."""
+    db.migrate(settings)
+    with db.session(settings) as connection:
+        connection.execute("DELETE FROM workflows")
+
+
 @pytest.fixture
 def conn(settings):
     """A ready-to-use connection on a migrated database. Tests call conn.commit() themselves whenever a
     second connection (e.g. one opened internally by Worker) needs to see the change."""
-    db.migrate(settings)
+    migrate_without_starters(settings)
     connection = db.connect(settings)
     try:
         yield connection
@@ -131,6 +139,7 @@ def app_client(settings, registry, fake_gateway):
         owner_email=OWNER_EMAIL,
         plugin_client_id=PLUGIN_CLIENT_ID,
     )
+    migrate_without_starters(test_settings)
     app = create_app(test_settings, registry=registry, gateway=fake_gateway, start_worker=False)
     with TestClient(app, base_url=PUBLIC_ORIGIN) as client:
         yield client

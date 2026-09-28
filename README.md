@@ -16,7 +16,8 @@ Access identity, either the owner's own email or the Claude plugin's service tok
   text or tag, combined with any filter.
 - **Custom workflows.** Upload a ComfyUI API-format graph, run it with a seed mode of its own and
   an uploaded picture for each Load Image node, and keep every past run's exact graph even after
-  the stored workflow is deleted.
+  the stored workflow is deleted. Three Qwen-Image 2.1 starters come preinstalled: image edit,
+  background removal and a 2K upscale.
 - **Claude plugin.** Drive Artio from Claude -- list models, generate, check status, search and
   fetch images, list and run stored workflows, and see GPU status -- through a versioned JSON API
   (`/api/v1`) the plugin's service token can reach and nothing else.
