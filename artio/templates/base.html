@@ -10,25 +10,35 @@
   <script src="/static/htmx.min.js"></script>
 </head>
 <body>
-  <header class="container">
-    <nav>
-      <ul>
-        <li><strong>Artio</strong></li>
-      </ul>
-      <ul>
-        <li><a href="/generate">Generate</a></li>
-        <li><a href="/queue">Queue</a></li>
-        <li><a href="/gallery">Gallery</a></li>
-        <li><a href="/library">Library</a></li>
-        <li><a href="/workflows">Workflows</a></li>
-        <li><a href="/gpu">GPU</a></li>
-      </ul>
-    </nav>
-    <div id="header-status" hx-get="/partials/header-status" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
-  </header>
-  <main class="container">
-    <div id="flash"></div>
-    {% block content %}{% endblock %}
-  </main>
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="sidebar-top">
+        <a href="/" class="brand">Artio</a>
+        <a href="/chat" class="new-chat" role="button">New chat</a>
+      </div>
+      <nav class="sidebar-section" aria-label="Conversations">
+        <span class="sidebar-label">Conversations</span>
+        <div id="chat-sessions" hx-get="/partials/chat-sessions{% block current_session %}{% endblock %}"
+             hx-trigger="load" hx-swap="innerHTML"></div>
+      </nav>
+      <nav class="sidebar-section" aria-label="Library">
+        <span class="sidebar-label">Library</span>
+        <ul class="sidebar-links">
+          <li><a href="/gallery">Gallery</a></li>
+          <li><a href="/library">Presets</a></li>
+          <li><a href="/workflows">Workflows</a></li>
+          <li><a href="/queue">Queue</a></li>
+          <li><a href="/gpu">GPU</a></li>
+          <li><a href="/generate">Full generate form</a></li>
+        </ul>
+      </nav>
+      <div id="header-status" class="sidebar-status" hx-get="/partials/header-status"
+           hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+    </aside>
+    <main class="{% block main_class %}page{% endblock %}">
+      <div id="flash"></div>
+      {% block content %}{% endblock %}
+    </main>
+  </div>
 </body>
 </html>

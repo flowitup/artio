@@ -10,7 +10,7 @@ def _table_names(conn: sqlite3.Connection) -> set[str]:
     return {row["name"] for row in rows}
 
 
-def test_migrate_creates_every_table_from_the_initial_migration(settings):
+def test_migrate_creates_every_table_from_every_migration(settings):
     db.migrate(settings)
     conn = db.connect(settings)
     try:
@@ -26,10 +26,11 @@ def test_migrate_creates_every_table_from_the_initial_migration(settings):
             "presets",
             "backend_state",
             "images_fts",
+            "chat_sessions",
         ):
             assert table in names
         version = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert [row["version"] for row in version] == [1]
+        assert [row["version"] for row in version] == [1, 2]
     finally:
         conn.close()
 
@@ -40,7 +41,7 @@ def test_migrate_applied_twice_is_a_no_op(settings):
     conn = db.connect(settings)
     try:
         rows = conn.execute("SELECT version FROM schema_version").fetchall()
-        assert [row["version"] for row in rows] == [1]
+        assert [row["version"] for row in rows] == [1, 2]
     finally:
         conn.close()
 

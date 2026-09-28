@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}{{ session.title if session else 'New chat' }} &middot; Artio{% endblock %}
+{% block current_session %}{% if session %}?current={{ session.id }}{% endif %}{% endblock %}
+{% block main_class %}page chat{% endblock %}
+{% block content %}
+{% set c = composer %}
+<header class="chat-header">
+  <h1>{{ session.title if session else 'New chat' }}</h1>
+  {% if session %}
+  <button type="button" class="outline secondary chat-delete" hx-post="/chat/{{ session.id }}/delete"
+          hx-confirm="Remove this conversation? Its images stay in the gallery.">Remove</button>
+  {% endif %}
+</header>
+
+<section class="chat-log" aria-label="Conversation">
+  {% if not turns %}
+  <div class="chat-empty">
+    <h2>What should Artio make?</h2>
+    <p>Describe an image and send it. Then reply with changes like "warmer light" or "add a cat on the table":
+      each reply keeps the last prompt and settings and adds your words. Use Refine on an image to keep its seed.</p>
+  </div>
+  {% endif %}
+  {% for turn in turns %}
+  {% set session_id = session.id %}
+  {% include "partials/chat_turn.html" %}
+  {% endfor %}
+</section>
+
+<form class="composer" id="composer" method="post" action="{{ '/chat/%d' % session.id if session else '/chat' }}">
+  {% if error %}<p class="error-text" role="alert">{{ error }}</p>{% endif %}
+  <input type="hidden" name="model_id" value="{{ c.model.id }}">
+
+  {% if c.refine_image_id %}
+  <input type="hidden" name="mode" value="refine">
+  <input type="hidden" name="refine_image_id" value="{{ c.refine_image_id }}">
+  <div class="refining">
+    <img src="/images/{{ c.refine_image_id }}/thumb" alt="">
+    <span>Refining this image with its seed kept</span>
+    <a href="{{ '/chat/%d' % session.id if session else '/chat' }}#composer" aria-label="Stop refining this image">Cancel</a>
+  </div>
+  {% elif turns %}
+  <fieldset class="pills" aria-label="What your message does">
+    <label><input type="radio" name="mode" value="refine" checked> Change the last result</label>
+    <label><input type="radio" name="mode" value="new"> New prompt</label>
+  </fieldset>
+  {% else %}
+  <input type="hidden" name="mode" value="new">
+  {% endif %}
+
+  <label for="text" class="visually-hidden">Message</label>
+  <textarea id="text" name="text" rows="2" required
+            placeholder="{{ 'Describe a change, like “warmer light”…' if (turns or c.refine_image_id) else 'Describe an image…' }}">{{ text }}</textarea>
+
+  <div class="composer-row">
+    <fieldset class="pills" aria-label="Size">
+      {% for preset in c.model.param_schema.presets %}
+      <label title="{{ preset.width }}×{{ preset.height }}">
+        <input type="radio" name="preset" value="{{ preset.name }}" {% if c.preset == preset.name %}checked{% endif %}>
+        {{ preset.name }}
+      </label>
+      {% endfor %}
+      {% if c.preset == 'custom' %}
+      <label><input type="radio" name="preset" value="custom" checked> {{ c.width }}&times;{{ c.height }}</label>
+      {% endif %}
+    </fieldset>
+    <input type="hidden" name="width" value="{{ c.width }}">
+    <input type="hidden" name="height" value="{{ c.height }}">
+
+    <label class="count">
+      <span>Images</span>
+      <select name="count" id="count">
+        {% for n in range(1, 9) %}
+        <option value="{{ n }}" {% if n == c.count %}selected{% endif %}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </label>
+
+    <span class="estimate">
+      {% if c.per_image_cost_usd %}{% if c.per_image_cost_usd < 0.01 %}under $0.01 per image{% else %}≈ ${{ '%.2f' % c.per_image_cost_usd }} per image{% endif %}{% endif %}
+    </span>
+    <button type="submit">Send</button>
+  </div>
+
+  <details class="advanced">
+    <summary>Advanced: steps, CFG, avoid</summary>
+    <div class="grid">
+      <label>Steps
+        <input type="number" name="steps" min="{{ c.model.param_schema.steps_min }}" max="{{ c.model.param_schema.steps_max }}" value="{{ c.steps }}">
+      </label>
+      <label>CFG
+        <input type="number" name="cfg" step="0.1" min="{{ c.model.param_schema.cfg_min }}" max="{{ c.model.param_schema.cfg_max }}" value="{{ c.cfg }}">
+      </label>
+    </div>
+    <label>Avoid (negative prompt)
+      <input type="text" name="negative" value="{{ c.negative }}">
+    </label>
+  </details>
+</form>
+{% endblock %}

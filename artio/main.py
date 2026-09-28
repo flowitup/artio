@@ -25,7 +25,7 @@ from artio.config import ConfigError, Settings, load_settings
 from artio.modal_gateway import ModalGateway, ModalSdkGateway
 from artio.registry import DEFAULT_REGISTRY, Registry
 from artio.request_limits import BodySizeLimitMiddleware
-from artio.routes import api_v1, generate, health, images, jobs, library, pages, workflows
+from artio.routes import api_v1, chat, generate, health, images, jobs, library, pages, workflows
 from artio.routes import gpu as gpu_routes
 from artio.worker import Worker
 
@@ -119,6 +119,7 @@ def create_app(
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
     app.include_router(pages.router)
+    app.include_router(chat.router)
     app.include_router(generate.router)
     app.include_router(jobs.router)
     app.include_router(images.router)

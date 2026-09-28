@@ -116,5 +116,6 @@ def test_second_model_registers_without_schema_change(conn, settings, fake_gatew
     assert len(images) == 1
     assert images[0]["job_id"] == job_id
 
+    # Only the migrations the app already ships: a second model needs no schema change of its own.
     versions = [row["version"] for row in conn.execute("SELECT version FROM schema_version")]
-    assert versions == [1]
+    assert versions == [1, 2]

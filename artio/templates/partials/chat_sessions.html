@@ -1,0 +1,9 @@
+{% if not sessions %}
+<p class="sidebar-empty">No conversations yet.</p>
+{% else %}
+<ul class="sidebar-links">
+  {% for s in sessions %}
+  <li><a href="/chat/{{ s.id }}" {% if s.id == current %}aria-current="page"{% endif %}>{{ s.title }}</a></li>
+  {% endfor %}
+</ul>
+{% endif %}

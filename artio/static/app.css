@@ -1,7 +1,508 @@
-/* Hand-written additions to Pico's classless defaults: thumbnails, status badges and error text.
-   No build step: this file is served exactly as written (see static/VERSIONS.txt for the vendored
-   htmx and Pico files). */
+/* Hand-written additions to Pico: the app theme, the sidebar shell, the chat view, thumbnails,
+   status badges and error text. No build step: this file is served exactly as written (see
+   static/VERSIONS.txt for the vendored htmx and Pico files). */
 
+/* ---------- Theme: soft light / deep plum-grey dark, violet accent (overrides Pico's tokens) ---------- */
+:root {
+  --artio-bg: #faf9fb;
+  --artio-side: #f1eff4;
+  --artio-raise: #ffffff;
+  --artio-ink: #221f27;
+  --artio-mute: #716b7a;
+  --artio-line: #e3dfe8;
+  --artio-accent: #7a3fd1;
+  --artio-accent-hover: #6630b8;
+  --artio-accent-soft: #efe7fb;
+  --artio-bubble: #221f27;
+  --artio-bubble-ink: #f6f4f8;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --artio-bg: #151318;
+    --artio-side: #1c1a20;
+    --artio-raise: #232028;
+    --artio-ink: #ece9f0;
+    --artio-mute: #a29baa;
+    --artio-line: #332f39;
+    --artio-accent: #b48cf2;
+    --artio-accent-hover: #c6a6f6;
+    --artio-accent-soft: #2e2440;
+    --artio-bubble: #ece9f0;
+    --artio-bubble-ink: #1c1a20;
+  }
+}
+
+:root,
+:root:not([data-theme="dark"]),
+[data-theme="light"],
+:root:not([data-theme]) {
+  --pico-font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --pico-background-color: var(--artio-bg);
+  --pico-color: var(--artio-ink);
+  --pico-muted-color: var(--artio-mute);
+  --pico-muted-border-color: var(--artio-line);
+  --pico-card-background-color: var(--artio-raise);
+  --pico-primary: var(--artio-accent);
+  --pico-primary-background: var(--artio-accent);
+  --pico-primary-border: var(--artio-accent);
+  --pico-primary-underline: color-mix(in srgb, var(--artio-accent) 50%, transparent);
+  --pico-primary-hover: var(--artio-accent-hover);
+  --pico-primary-hover-background: var(--artio-accent-hover);
+  --pico-primary-hover-border: var(--artio-accent-hover);
+  --pico-primary-focus: color-mix(in srgb, var(--artio-accent) 30%, transparent);
+  --pico-primary-inverse: #fff;
+  --pico-border-radius: 0.6rem;
+}
+
+body {
+  background: var(--artio-bg);
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- Shell: sidebar + main ---------- */
+.shell {
+  display: grid;
+  grid-template-columns: 15rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.sidebar {
+  background: var(--artio-side);
+  border-right: 1px solid var(--artio-line);
+  padding: 1rem 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+.sidebar-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding-inline: 0.5rem;
+}
+
+.brand {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--artio-ink);
+  text-decoration: none;
+}
+
+.new-chat {
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+  margin: 0;
+}
+
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sidebar-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--artio-mute);
+  padding-inline: 0.5rem;
+}
+
+.sidebar ul.sidebar-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar ul.sidebar-links li {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.sidebar-links a {
+  display: block;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.45rem;
+  color: var(--artio-mute);
+  font-size: 0.9rem;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sidebar-links a:hover,
+.sidebar-links a[aria-current="page"] {
+  background: var(--artio-raise);
+  color: var(--artio-ink);
+}
+
+.sidebar-empty {
+  color: var(--artio-mute);
+  font-size: 0.85rem;
+  padding-inline: 0.5rem;
+  margin: 0;
+}
+
+.sidebar-status {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.35rem;
+  padding-inline: 0.5rem;
+}
+
+.sidebar-status .badge {
+  margin: 0;
+  font-size: 0.75rem;
+}
+
+main.page {
+  padding: 1.5rem 2rem 2rem;
+  min-width: 0;
+}
+
+@media (max-width: 800px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    min-width: 0;
+    position: static;
+    height: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--artio-line);
+    gap: 0.75rem;
+  }
+
+  .sidebar-section ul.sidebar-links {
+    display: flex;
+    gap: 0.25rem;
+    overflow-x: auto;
+  }
+
+  .sidebar-status {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  main.page {
+    padding: 1rem;
+  }
+}
+
+/* ---------- Chat ---------- */
+main.chat {
+  display: flex;
+  flex-direction: column;
+  max-width: 60rem;
+}
+
+.chat-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.chat-header h1 {
+  font-size: 1.35rem;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.chat-delete {
+  width: auto;
+  margin: 0;
+  padding: 0.3rem 0.75rem;
+  font-size: 0.85rem;
+}
+
+.chat-log {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  flex: 1;
+  padding-bottom: 1.5rem;
+}
+
+.chat-empty {
+  max-width: 34rem;
+  color: var(--artio-mute);
+}
+
+.chat-empty h2 {
+  color: var(--artio-ink);
+  font-size: 1.5rem;
+}
+
+.turn {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.bubble {
+  align-self: flex-end;
+  max-width: min(36rem, 85%);
+  margin: 0;
+  background: var(--artio-bubble);
+  color: var(--artio-bubble-ink);
+  border-radius: 1rem 1rem 0.25rem 1rem;
+  padding: 0.6rem 0.9rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.reply {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  max-width: 44rem;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  gap: 0.4rem;
+}
+
+.tile {
+  position: relative;
+  max-width: 100%;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  background: var(--artio-side);
+  border: 1px solid var(--artio-line);
+  display: grid;
+  place-items: center;
+}
+
+.tile-image,
+.tile-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.tile-image img {
+  object-fit: cover;
+}
+
+.tile-note {
+  font-size: 0.8rem;
+  color: var(--artio-mute);
+}
+
+.tile-submitted {
+  background: linear-gradient(110deg, var(--artio-side) 30%, var(--artio-accent-soft) 50%, var(--artio-side) 70%);
+  background-size: 250% 100%;
+  animation: tile-shimmer 1.6s linear infinite;
+}
+
+@keyframes tile-shimmer {
+  to {
+    background-position: -150% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tile-submitted {
+    animation: none;
+  }
+}
+
+.tile-action {
+  position: absolute;
+  left: 0.4rem;
+  bottom: 0.4rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(20, 18, 24, 0.72);
+  color: #fff;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.tile:hover .tile-action,
+.tile-action:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .tile-action {
+    opacity: 1;
+  }
+}
+
+.turn-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--artio-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.turn-prompt {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--artio-mute);
+}
+
+.turn-prompt summary {
+  font-size: 0.8rem;
+}
+
+.turn-prompt p {
+  margin: 0.25rem 0 0;
+}
+
+.composer {
+  position: sticky;
+  bottom: 0;
+  background: var(--artio-raise);
+  border: 1px solid var(--artio-line);
+  border-radius: 1rem;
+  padding: 0.75rem 0.9rem;
+  box-shadow: 0 -0.5rem 1.5rem -1rem rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-bottom: 0;
+}
+
+.composer textarea {
+  margin: 0;
+  resize: vertical;
+  min-height: 3.2rem;
+}
+
+.composer-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.composer-row button {
+  width: auto;
+  margin: 0 0 0 auto;
+  padding-inline: 1.25rem;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.pills label {
+  margin: 0;
+  font-size: 0.85rem;
+  padding: 0.25rem 0.7rem;
+  border-radius: 999px;
+  border: 1px solid var(--artio-line);
+  cursor: pointer;
+  color: var(--artio-mute);
+}
+
+.pills input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.pills label:has(input:checked) {
+  background: var(--artio-accent-soft);
+  border-color: var(--artio-accent);
+  color: var(--artio-ink);
+}
+
+.pills label:has(input:focus-visible) {
+  outline: 2px solid var(--artio-accent);
+  outline-offset: 2px;
+}
+
+.count {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--artio-mute);
+}
+
+.count select {
+  margin: 0;
+  width: auto;
+  padding: 0.2rem 2rem 0.2rem 0.6rem;
+  height: auto;
+  font-size: 0.85rem;
+}
+
+.estimate {
+  font-size: 0.8rem;
+  color: var(--artio-mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.advanced {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.advanced summary {
+  color: var(--artio-mute);
+}
+
+.refining {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+
+.refining img {
+  width: 2.5rem;
+  height: 2.5rem;
+  object-fit: cover;
+  border-radius: 0.4rem;
+}
+
+.refining a {
+  margin-left: auto;
+}
+
+/* ---------- Existing pages ---------- */
 .thumb-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -36,6 +537,7 @@
   border-radius: 999px;
   margin-inline-end: 0.5rem;
   font-size: 0.85em;
+  text-decoration: none;
 }
 
 .badge-ok {
