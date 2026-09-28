@@ -7,7 +7,7 @@ Access identity, either the owner's own email or the Claude plugin's service tok
 
 ## What it does
 
-- **Generate.** Pick a model, a size preset (or a custom size), a seed strategy and a batch count;
+- **Generate.** Pick a model, a size preset at a resolution level (512p, 720p or 1080p) or a custom size, a seed strategy and a batch count;
   follow the queue live; browse, remix and delete finished images.
 - **GPU control.** See each backend's status (warm, warming, running, scaled to zero, stopped or
   unhealthy), warm one up ahead of a session, or stop it -- computed on read, never polled in the

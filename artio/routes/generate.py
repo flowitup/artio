@@ -56,10 +56,14 @@ def _size_from_form(model: Model, form: dict) -> tuple[int, int]:
     preset_name = form.get("preset", "")
     if preset_name == "custom":
         return _parse_int(form.get("width", ""), "width"), _parse_int(form.get("height", ""), "height")
-    for preset in model.param_schema.presets:
-        if preset.name == preset_name:
-            return preset.width, preset.height
-    raise _FormError(f"Unknown size preset {preset_name!r}")
+    schema = model.param_schema
+    tier = form.get("tier", "")
+    if tier and not any(t.name == tier for t in schema.tiers):
+        raise _FormError(f"Unknown resolution {tier!r}")
+    preset = schema.size(preset_name, tier)
+    if preset is None:
+        raise _FormError(f"Unknown size preset {preset_name!r}")
+    return preset.width, preset.height
 
 
 def _seed_from_form(form: dict) -> tuple[str, int | None]:

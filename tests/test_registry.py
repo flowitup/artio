@@ -119,3 +119,18 @@ def test_second_model_registers_without_schema_change(conn, settings, fake_gatew
     # Only the migrations the app already ships: a second model needs no schema change of its own.
     versions = [row["version"] for row in conn.execute("SELECT version FROM schema_version")]
     assert versions == [1, 2, 3, 4]
+
+
+def test_every_resolution_level_is_a_valid_size_for_every_shape():
+    schema = DEFAULT_REGISTRY.model("qwen-image-2.1-uc").param_schema
+    assert [t.name for t in schema.tiers] == ["512p", "720p", "1080p"]
+    assert schema.default_tier == "1080p"
+    for tier in schema.tiers:
+        for preset in schema.presets:
+            size = schema.size(preset.name, tier.name)
+            schema.validate(width=size.width, height=size.height, steps=25, cfg=1.0)
+            assert schema.match(size.width, size.height) == (preset.name, tier.name)
+    assert schema.size("16:9", "720p") == SizePreset("16:9", 1280, 720)
+    assert schema.size("16:9", "1080p") == schema.size("16:9") == SizePreset("16:9", 1920, 1088)
+    assert schema.size("16:9", "4K") is None
+    assert schema.match(1000, 1000) is None

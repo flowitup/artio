@@ -560,3 +560,26 @@ def test_workflows_list_never_calls_get_workflow_per_row(app_client, service_hea
     assert response.status_code == 200
     body = response.json()
     assert any(w["id"] == route_ids["workflow_id"] for w in body)
+
+
+def test_generate_takes_a_resolution_with_a_size(app_client, service_headers, registry, conn):
+    model = next(iter(registry.models.values()))
+    payload = next(m for m in app_client.get("/api/v1/models", headers=service_headers).json() if m["id"] == model.id)
+    assert [r["name"] for r in payload["resolutions"]] == ["512p", "720p", "1080p"]
+    assert payload["default_resolution"] == "1080p"
+
+    response = app_client.post(
+        "/api/v1/generate",
+        headers=service_headers,
+        json={"model": model.id, "prompt": "x", "size": "1:1", "resolution": "512p", "count": 1},
+    )
+    assert response.status_code == 201
+    job_id = response.json()["job_ids"][0]
+    params = json.loads(conn.execute("SELECT params_json FROM jobs WHERE id = ?", (job_id,)).fetchone()["params_json"])
+    assert (params["width"], params["height"]) == (624, 624)
+
+    for body in ({"resolution": "8K", "size": "1:1"}, {"resolution": "720p", "width": 1024, "height": 1024}):
+        refused = app_client.post(
+            "/api/v1/generate", headers=service_headers, json={"model": model.id, "prompt": "x", **body}
+        )
+        assert refused.status_code == 422
