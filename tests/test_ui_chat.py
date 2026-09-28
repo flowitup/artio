@@ -205,7 +205,7 @@ def test_sidebar_lists_conversations_newest_first_and_marks_the_current_one(app_
 
 def test_composer_estimates_cost_from_recent_renders(conn, registry):
     model = next(iter(registry.models.values()))
-    assert chat.per_image_cost(conn, model.id) is None
+    assert chat.cost_per_megapixel(conn, model.id) is None
 
 
 def test_join_prompt_trims_trailing_punctuation():
@@ -224,3 +224,34 @@ def test_seed_label_shows_a_range_only_for_consecutive_seeds():
     assert turn_with([7]).seed_label == "seed 7"
     assert turn_with([7, 8, 9]).seed_label == "seeds 7–9"
     assert turn_with([7, 900]).seed_label is None
+
+
+def test_a_lower_resolution_scales_the_shape_and_carries_over(app_client, owner_headers, registry, conn):
+    sent = _post(app_client, owner_headers, "/chat", _form(registry, "a harbour", preset="16:9", tier="720p"))
+    session_id, batch_id = _ids_from(sent.headers["location"])
+    _, params, _ = _batch(conn, batch_id)
+    assert (params["width"], params["height"]) == (1280, 720)
+
+    page = app_client.get(f"/chat/{session_id}", headers=owner_headers)
+    assert 'name="tier" value="720p"\n               checked' in page.text
+    assert 'name="preset" value="16:9" checked' in page.text
+
+
+def test_an_unknown_resolution_is_refused(app_client, owner_headers, registry):
+    response = _post(app_client, owner_headers, "/chat", _form(registry, "a harbour", tier="8K"))
+    assert response.status_code == 200
+    assert "Unknown resolution" in response.text
+
+
+def test_cost_estimate_scales_with_pixel_count(app_client, owner_headers, registry, conn):
+    model = next(iter(registry.models.values()))
+    full_mp, small_mp = 1920 * 1088 / 1e6, 1280 * 720 / 1e6
+    for tier, cost in (("1080p", 0.04), ("720p", 0.04 * small_mp / full_mp)):
+        sent = _post(app_client, owner_headers, "/chat", _form(registry, "a harbour", preset="16:9", tier=tier))
+        _, batch_id = _ids_from(sent.headers["location"])
+        conn.execute("UPDATE jobs SET status = 'done', est_cost_usd = ? WHERE batch_id = ?", (cost, batch_id))
+        conn.commit()
+
+    rate = chat.cost_per_megapixel(conn, model.id)
+    assert abs(rate * full_mp - 0.04) < 1e-9
+    assert abs(rate * small_mp - 0.04 * small_mp / full_mp) < 1e-9

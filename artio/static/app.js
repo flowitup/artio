@@ -1,6 +1,7 @@
 // Small progressive enhancements. Every page works without this file; it only adds:
-// the phone menu toggle, opening a chat at its latest turn, Ctrl/Cmd+Enter to send, and on the
-// Workflows page a preview of each chosen input image plus the list's search box.
+// the phone menu toggle, opening a chat at its latest turn, Ctrl/Cmd+Enter to send, updating the
+// composer's pixel size and price when its shape or resolution changes, and on the Workflows page a
+// preview of each chosen input image plus the list's search box.
 (function () {
   "use strict";
 
@@ -32,6 +33,28 @@
         if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
           event.preventDefault();
           composer.requestSubmit();
+        }
+      });
+    }
+
+    // The server shows the pixels and price of the size the composer opened with; picking another
+    // shape or resolution updates both, pricing by pixel count the same way the server does.
+    var readout = composer.querySelector(".size-readout");
+    if (readout) {
+      var perMegapixel = parseFloat(readout.dataset.perMegapixel);
+      var sizes = JSON.parse(readout.dataset.sizes);
+      var px = readout.querySelector(".px");
+      var estimate = readout.querySelector(".estimate");
+      composer.addEventListener("change", function (event) {
+        if (event.target.name !== "preset" && event.target.name !== "tier") return;
+        var shape = composer.querySelector('input[name="preset"]:checked');
+        var tier = composer.querySelector('input[name="tier"]:checked');
+        var size = shape && sizes[shape.value + "|" + (tier ? tier.value : "")];
+        if (!size) return;
+        px.textContent = size[0] + "×" + size[1];
+        if (perMegapixel) {
+          var cost = perMegapixel * size[0] * size[1] / 1e6;
+          estimate.textContent = cost < 0.01 ? "under $0.01 per image" : "≈ $" + cost.toFixed(2) + " per image";
         }
       });
     }

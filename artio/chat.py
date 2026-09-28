@@ -22,7 +22,7 @@ from typing import Literal
 
 from artio import jobs
 from artio.config import Settings
-from artio.registry import Model, Registry
+from artio.registry import Model, Registry, SizeTier
 
 TITLE_LIMIT = 60
 MESSAGE_LIMIT = 2000
@@ -99,6 +99,7 @@ class Composer:
 
     model: Model
     preset: str
+    tier: str
     width: int
     height: int
     steps: int
@@ -107,7 +108,22 @@ class Composer:
     count: int
     refine_image_id: int | None
     refine_thumb_prompt: str | None
-    per_image_cost_usd: float | None
+    cost_per_megapixel_usd: float | None
+
+    @property
+    def per_image_cost_usd(self) -> float | None:
+        rate = self.cost_per_megapixel_usd
+        return None if rate is None else rate * self.width * self.height / 1_000_000
+
+    def size_options(self) -> dict[str, list[int]]:
+        """"shape|level" -> [width, height] for every pickable size, so the page can re-price the
+        estimate when the picked size changes."""
+        schema = self.model.param_schema
+        options = {}
+        for tier in schema.tiers or (SizeTier(""),):
+            for p in tier.sizes or schema.presets:
+                options[f"{p.name}|{tier.name}"] = [p.width, p.height]
+        return options
 
 
 def _session_from_row(row: sqlite3.Row) -> ChatSession:
@@ -185,14 +201,17 @@ def turn(conn: sqlite3.Connection, batch_id: int) -> Turn | None:
     return _turn_from_batch(conn, batch) if batch is not None else None
 
 
-def per_image_cost(conn: sqlite3.Connection, model_id: str) -> float | None:
-    """Average estimated cost of this model's recent finished renders, or None before the first one."""
+def cost_per_megapixel(conn: sqlite3.Connection, model_id: str) -> float | None:
+    """Average estimated cost per million pixels of this model's recent finished renders, or None
+    before the first one. Per pixel, so one history can price every size and resolution level."""
     row = conn.execute(
-        "SELECT AVG(est_cost_usd) AS avg_cost FROM (SELECT est_cost_usd FROM jobs "
-        "WHERE model_id = ? AND status = 'done' AND est_cost_usd IS NOT NULL ORDER BY id DESC LIMIT ?)",
+        "SELECT AVG(est_cost_usd * 1000000.0 / (w * h)) AS rate FROM ("
+        "SELECT est_cost_usd, json_extract(params_json, '$.width') AS w, json_extract(params_json, '$.height') AS h "
+        "FROM jobs WHERE model_id = ? AND kind = 'generate' AND status = 'done' AND est_cost_usd IS NOT NULL "
+        "AND w > 0 AND h > 0 ORDER BY id DESC LIMIT ?)",
         (model_id, _ESTIMATE_SAMPLE),
     ).fetchone()
-    return row["avg_cost"]
+    return row["rate"]
 
 
 def _refine_source(conn: sqlite3.Connection, image_id: int) -> tuple[str, dict] | None:
@@ -207,11 +226,9 @@ def _refine_source(conn: sqlite3.Connection, image_id: int) -> tuple[str, dict] 
     return row["model_id"], json.loads(row["params_json"])
 
 
-def _preset_name(model: Model, width: int, height: int) -> str:
-    for preset in model.param_schema.presets:
-        if (preset.width, preset.height) == (width, height):
-            return preset.name
-    return "custom"
+def _size_choice(model: Model, width: int, height: int) -> tuple[str, str]:
+    """(shape, resolution level) the composer shows as picked; ("custom", "") for any other size."""
+    return model.param_schema.match(width, height) or ("custom", "")
 
 
 def composer(
@@ -238,9 +255,11 @@ def composer(
         size = schema.default_size()
         width, height, steps, cfg, negative = size.width, size.height, schema.steps_default, schema.cfg_default, ""
         count = DEFAULT_COUNT
+    shape, tier = _size_choice(model, width, height)
     return Composer(
         model=model,
-        preset=_preset_name(model, width, height),
+        preset=shape,
+        tier=tier,
         width=width,
         height=height,
         steps=steps,
@@ -249,7 +268,7 @@ def composer(
         count=count,
         refine_image_id=refine_image_id,
         refine_thumb_prompt=refine_prompt,
-        per_image_cost_usd=per_image_cost(conn, model.id),
+        cost_per_megapixel_usd=cost_per_megapixel(conn, model.id),
     )
 
 

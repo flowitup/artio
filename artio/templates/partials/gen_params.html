@@ -5,7 +5,7 @@
   <label>
     <input type="radio" name="preset" value="{{ preset.name }}"
            {% if (values.preset or schema.default_preset) == preset.name %}checked{% endif %}>
-    {{ preset.name }} ({{ preset.width }}&times;{{ preset.height }})
+    {{ preset.name }}{% if not schema.tiers %} ({{ preset.width }}&times;{{ preset.height }}){% endif %}
   </label>
   {% endfor %}
   <label>
@@ -18,6 +18,20 @@
            step="{{ schema.size_multiple }}" value="{{ values.height or schema.default_size().height }}">
   </label>
 </fieldset>
+
+{% if schema.tiers %}
+<fieldset>
+  <legend>Resolution</legend>
+  {% for tier in schema.tiers %}
+  <label>
+    <input type="radio" name="tier" value="{{ tier.name }}"
+           {% if (values.tier or schema.default_tier) == tier.name %}checked{% endif %}>
+    {{ tier.name }}
+  </label>
+  {% endfor %}
+  <small>Applies to the shapes above, not to a custom size. Lower resolutions render faster and cost less.</small>
+</fieldset>
+{% endif %}
 
 <label for="steps">Steps</label>
 <input type="number" id="steps" name="steps" min="{{ schema.steps_min }}" max="{{ schema.steps_max }}"

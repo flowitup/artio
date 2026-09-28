@@ -29,6 +29,15 @@ class SizePreset:
 
 
 @dataclass(frozen=True, slots=True)
+class SizeTier:
+    """A resolution level: the same shapes as the presets, at fewer pixels. A tier with no sizes of its
+    own stands for the presets themselves, so the presets stay the full-size level."""
+
+    name: str
+    sizes: tuple[SizePreset, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class ParamSchema:
     """Validated bounds for one model's generation parameters."""
 
@@ -43,9 +52,33 @@ class ParamSchema:
     size_multiple: int
     presets: tuple[SizePreset, ...]
     default_preset: str
+    tiers: tuple[SizeTier, ...] = ()
+    default_tier: str = ""
 
     def default_size(self) -> SizePreset:
-        return next(p for p in self.presets if p.name == self.default_preset)
+        return self.size(self.default_preset, self.default_tier) or next(
+            p for p in self.presets if p.name == self.default_preset
+        )
+
+    def size(self, shape: str, tier: str = "") -> SizePreset | None:
+        """The preset named `shape` at resolution level `tier` ("" means the full-size presets), or
+        None when either name is unknown."""
+        sizes = self.presets
+        if tier:
+            level = next((t for t in self.tiers if t.name == tier), None)
+            if level is None:
+                return None
+            sizes = level.sizes or self.presets
+        return next((p for p in sizes if p.name == shape), None)
+
+    def match(self, width: int, height: int) -> tuple[str, str] | None:
+        """(shape, tier) whose size is exactly width x height, or None for a custom size. The tier is
+        "" when the model has no tiers."""
+        for tier in self.tiers or (SizeTier(""),):
+            for p in tier.sizes or self.presets:
+                if (p.width, p.height) == (width, height):
+                    return p.name, tier.name
+        return None
 
     def validate(self, *, width: int, height: int, steps: int, cfg: float) -> None:
         """Raise InvalidParams with a clear message on the first bound violated."""
@@ -119,6 +152,20 @@ QWEN21_UC_PARAMS = ParamSchema(
         SizePreset("1:1", 1328, 1328),
     ),
     default_preset="9:16",
+    # Lower levels keep each shape and scale its short side to 720 or 512 (the model's minimum). Cost
+    # tracks pixel count, so 720p is about half of 1080p and 512p about a quarter.
+    tiers=(
+        SizeTier(
+            "512p",
+            (SizePreset("9:16", 512, 912), SizePreset("16:9", 912, 512), SizePreset("1:1", 624, 624)),
+        ),
+        SizeTier(
+            "720p",
+            (SizePreset("9:16", 720, 1280), SizePreset("16:9", 1280, 720), SizePreset("1:1", 880, 880)),
+        ),
+        SizeTier("1080p"),
+    ),
+    default_tier="1080p",
 )
 
 QWEN21_UC_MODEL = Model(
