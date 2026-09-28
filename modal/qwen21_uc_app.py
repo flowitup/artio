@@ -9,7 +9,9 @@ Call from Python (e.g. the Hetzner worker):
   gen = modal.Cls.from_name("qwen21-uc", "Qwen21UC")()
   png = gen.generate.remote(prompt="...", width=1088, height=1920)
 """
+import hashlib
 import json
+import re
 import subprocess
 import time
 import uuid
@@ -21,6 +23,10 @@ APP_NAME = "qwen21-uc"
 GPU = "L40S"                   # 48 GB; "A10" (24 GB) is cheaper but slower/tighter
 COMFY_VERSION = "v0.37.2"      # same as Comfy Desktop on the Mac
 MODELS_DIR = "/models"
+INPUT_DIR = Path("/root/ComfyUI/input")
+# The only input-image names Artio issues (artio/storage.py INPUT_IMAGE_NAME_RE): the file's own
+# SHA-256, so a name can never escape INPUT_DIR and its bytes can be checked against it.
+INPUT_NAME_RE = re.compile(r"^artio-in-([0-9a-f]{64})\.(png|jpg|webp)$")
 
 REPO = "abenzerps/Qwen-Image-2.1-Uncensored-GGUF"
 FILES = {
@@ -145,8 +151,20 @@ class Qwen21UC:
         return self._run(build_workflow(prompt, width, height, steps, seed, cfg, negative))
 
     @modal.method()
-    def run_workflow(self, workflow: dict) -> bytes:
-        """Run any API-format ComfyUI workflow (e.g. exported from Comfy Desktop)."""
+    def run_workflow(self, workflow: dict, images: dict | None = None) -> bytes:
+        """Run any API-format ComfyUI workflow (e.g. exported from Comfy Desktop). `images` maps the
+        file names its LoadImage nodes reference to their bytes; each is written to ComfyUI's input
+        folder first. Names are content hashes, so a file already there is identical and is kept."""
+        for name, data in (images or {}).items():
+            match = INPUT_NAME_RE.match(name)
+            if match is None or hashlib.sha256(data).hexdigest() != match.group(1):
+                raise ValueError(f"refusing input image {name[:100]!r}: not a content-addressed Artio name")
+            dst = INPUT_DIR / name
+            if not dst.exists():
+                INPUT_DIR.mkdir(parents=True, exist_ok=True)
+                tmp = INPUT_DIR / f".{name}.{uuid.uuid4().hex}.tmp"
+                tmp.write_bytes(data)
+                tmp.replace(dst)  # atomic, so a concurrent input never reads a half-written file
         return self._run(workflow)
 
     @modal.method()

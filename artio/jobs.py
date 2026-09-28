@@ -386,6 +386,14 @@ def create_workflow_batch(
             "and can no longer be run safely; delete and re-upload it."
         )
 
+    missing = custom_workflows.missing_images(workflow.graph)
+    if missing:
+        names = ", ".join(f"{slot.title} (node {slot.node_id})" for slot in missing)
+        raise ValueError(
+            f"This workflow needs an uploaded image for: {names}. Run it from the Workflows page "
+            "and choose an image for each one."
+        )
+
     targets = custom_workflows.seed_targets(workflow.graph)
     if count > 1 and not targets:
         raise ValueError(
@@ -426,9 +434,14 @@ def create_workflow_batch(
     batch_id = cursor.lastrowid
     assert batch_id is not None
 
+    # The graph's first prompt text is recorded with each result, so a workflow image shows (and is
+    # found by) the prompt it was actually run with, like a generated one.
+    prompts = custom_workflows.text_slots(workflow.graph)
     for s in seeds:
         graph = workflow.graph if seed_mode == "keep" else custom_workflows.with_seed(workflow.graph, s)
         params = {"workflow": workflow.name, "seed": s}
+        if prompts:
+            params["prompt"] = prompts[0].value
         conn.execute(
             "INSERT INTO jobs (batch_id, model_id, backend_id, kind, params_json, graph_json, "
             "workflow_id, status, created_at) VALUES (?, NULL, ?, 'workflow', ?, ?, ?, 'queued', ?)",

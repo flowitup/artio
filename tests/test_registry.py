@@ -118,4 +118,4 @@ def test_second_model_registers_without_schema_change(conn, settings, fake_gatew
 
     # Only the migrations the app already ships: a second model needs no schema change of its own.
     versions = [row["version"] for row in conn.execute("SELECT version FROM schema_version")]
-    assert versions == [1, 2]
+    assert versions == [1, 2, 3]

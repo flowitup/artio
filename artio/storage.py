@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import io
 import os
+import re
 import shutil
 import sqlite3
 from dataclasses import dataclass
@@ -118,6 +119,59 @@ def save_result(data_dir: Path, job_id: int, data: bytes) -> SavedImage:
         bytes=len(data),
         sha256=hashlib.sha256(data).hexdigest(),
     )
+
+
+# Input images for custom workflows: stored once per content under data_dir/inputs, named by their
+# own SHA-256 so the same picture uploaded twice is one file, and so a job graph can reference it by a
+# name that says nothing about the owner's original file name. The Modal backend accepts exactly this
+# name shape (modal/qwen21_uc_app.py's INPUT_NAME_RE) and nothing else.
+INPUT_IMAGES_DIR = "inputs"
+INPUT_IMAGE_NAME_RE = re.compile(r"^artio-in-[0-9a-f]{64}\.(png|jpg|webp)$")
+MAX_INPUT_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_INPUT_IMAGE_PIXELS = 40_000_000
+_INPUT_FORMATS = {"PNG": "png", "JPEG": "jpg", "WEBP": "webp"}
+
+
+class InvalidInputImage(Exception):
+    """Raised for an uploaded input image this app refuses; the message is safe to show the owner."""
+
+
+def save_input_image(data_dir: Path, data: bytes) -> str:
+    """Verifies an uploaded input image (PNG, JPEG or WebP, at most 10 MB and 40 megapixels) and
+    stores it as received under data_dir/inputs, returning its content-addressed file name. Writing
+    the same bytes again is a no-op. Raises InvalidInputImage with an owner-facing message."""
+    if len(data) > MAX_INPUT_IMAGE_BYTES:
+        raise InvalidInputImage(f"the image is larger than {MAX_INPUT_IMAGE_BYTES // 2**20} MB")
+    try:
+        with Image.open(io.BytesIO(data)) as probe:
+            fmt = probe.format
+            width, height = probe.size
+            probe.verify()
+    except _DECODE_ERRORS:
+        raise InvalidInputImage("not a readable PNG, JPEG or WebP image") from None
+    ext = _INPUT_FORMATS.get(fmt or "")
+    if ext is None:
+        raise InvalidInputImage(f"{fmt} images are not supported; use PNG, JPEG or WebP")
+    if width * height > MAX_INPUT_IMAGE_PIXELS:
+        raise InvalidInputImage(f"the image is {width}x{height}, over the {MAX_INPUT_IMAGE_PIXELS // 1_000_000} megapixel limit")
+
+    name = f"artio-in-{hashlib.sha256(data).hexdigest()}.{ext}"
+    path = data_dir / INPUT_IMAGES_DIR / name
+    if not path.exists():
+        _atomic_write(path, data)
+    return name
+
+
+def read_input_image(data_dir: Path, name: str) -> bytes | None:
+    """The stored bytes of one input image by its content-addressed name, or None when the name is
+    not one this app issues or the file is gone."""
+    if not INPUT_IMAGE_NAME_RE.match(name):
+        return None
+    path = data_dir / INPUT_IMAGES_DIR / name
+    try:
+        return path.read_bytes()
+    except FileNotFoundError:
+        return None
 
 
 def resolve_under(data_dir: Path, relative: str | Path) -> Path | None:

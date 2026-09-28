@@ -220,7 +220,7 @@ class ModalGateway(Protocol):
     """Everything the job engine needs from Modal. `ModalSdkGateway` is the only implementation that
     performs network I/O; `tests/fakes.py:FakeModalGateway` stands in for it in every other test."""
 
-    async def spawn_workflow(self, backend: Backend, graph: dict) -> str: ...
+    async def spawn_workflow(self, backend: Backend, graph: dict, images: dict[str, bytes] | None = None) -> str: ...
 
     async def poll(self, call_id: str) -> PollResult: ...
 
@@ -254,10 +254,15 @@ class ModalSdkGateway:
             self._handles[backend.id] = handle
         return handle
 
-    async def spawn_workflow(self, backend: Backend, graph: dict) -> str:
+    async def spawn_workflow(self, backend: Backend, graph: dict, images: dict[str, bytes] | None = None) -> str:
         handle = self._handle(backend)
         try:
-            call = await handle.run_workflow.spawn.aio(graph)
+            # A graph with no input images keeps the one-argument call, so it still runs on a backend
+            # deployed before run_workflow learned its `images` parameter.
+            if images:
+                call = await handle.run_workflow.spawn.aio(graph, images)
+            else:
+                call = await handle.run_workflow.spawn.aio(graph)
         except PERMANENT:
             self._handles.pop(backend.id, None)
             raise
