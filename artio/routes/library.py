@@ -16,7 +16,7 @@ from artio import db, library
 
 router = APIRouter()
 
-_PRESET_FIELDS = ("prompt", "negative", "preset", "width", "height", "steps", "cfg")
+_PRESET_FIELDS = ("prompt", "negative", "preset", "tier", "width", "height", "steps", "cfg")
 
 
 def _library_context(conn) -> dict:

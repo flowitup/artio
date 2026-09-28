@@ -80,6 +80,11 @@ def _model_payload(model: Model) -> dict:
         "size": {"min": schema.size_min, "max": schema.size_max, "multiple": schema.size_multiple},
         "presets": [{"name": p.name, "width": p.width, "height": p.height} for p in schema.presets],
         "default_preset": schema.default_preset,
+        "resolutions": [
+            {"name": t.name, "sizes": [{"name": p.name, "width": p.width, "height": p.height} for p in t.sizes or schema.presets]}
+            for t in schema.tiers
+        ],
+        "default_resolution": schema.default_tier or None,
     }
 
 
@@ -99,6 +104,7 @@ class GenerateBody(BaseModel):
     prompt: str
     negative: str = ""
     size: str | None = None
+    resolution: str | None = None
     width: int | None = None
     height: int | None = None
     steps: int | None = None
@@ -111,10 +117,15 @@ def _size_from_body(model: Model, body: GenerateBody) -> tuple[int, int]:
     if body.size is not None:
         if body.width is not None or body.height is not None:
             raise ValueError("Specify either 'size' or 'width'/'height', not both.")
-        for preset in model.param_schema.presets:
-            if preset.name == body.size:
-                return preset.width, preset.height
-        raise ValueError(f"Unknown size preset {body.size!r} for model {model.id!r}.")
+        schema = model.param_schema
+        if body.resolution is not None and not any(t.name == body.resolution for t in schema.tiers):
+            raise ValueError(f"Unknown resolution {body.resolution!r} for model {model.id!r}.")
+        preset = schema.size(body.size, body.resolution or "")
+        if preset is None:
+            raise ValueError(f"Unknown size preset {body.size!r} for model {model.id!r}.")
+        return preset.width, preset.height
+    if body.resolution is not None:
+        raise ValueError("'resolution' goes with 'size'; it does not apply to 'width'/'height'.")
     if body.width is not None and body.height is not None:
         return body.width, body.height
     if body.width is not None or body.height is not None:

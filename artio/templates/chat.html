@@ -54,7 +54,7 @@
   <div class="composer-row">
     <fieldset class="pills" aria-label="Size">
       {% for preset in c.model.param_schema.presets %}
-      <label title="{{ preset.width }}×{{ preset.height }}">
+      <label{% if not c.model.param_schema.tiers %} title="{{ preset.width }}×{{ preset.height }}"{% endif %}>
         <input type="radio" name="preset" value="{{ preset.name }}" {% if c.preset == preset.name %}checked{% endif %}>
         {{ preset.name }}
       </label>
@@ -63,6 +63,17 @@
       <label><input type="radio" name="preset" value="custom" checked> {{ c.width }}&times;{{ c.height }}</label>
       {% endif %}
     </fieldset>
+    {% if c.model.param_schema.tiers %}
+    <fieldset class="pills" aria-label="Resolution">
+      {% for tier in c.model.param_schema.tiers %}
+      <label>
+        <input type="radio" name="tier" value="{{ tier.name }}"
+               {% if (c.tier or c.model.param_schema.default_tier) == tier.name %}checked{% endif %}>
+        {{ tier.name }}
+      </label>
+      {% endfor %}
+    </fieldset>
+    {% endif %}
     <input type="hidden" name="width" value="{{ c.width }}">
     <input type="hidden" name="height" value="{{ c.height }}">
 
@@ -75,7 +86,7 @@
       </select>
     </label>
 
-    <span class="estimate">
+    <span class="estimate"{% if c.cost_per_megapixel_usd %} data-per-megapixel="{{ c.cost_per_megapixel_usd }}" data-sizes='{{ c.size_options() | tojson }}'{% endif %}>
       {% if c.per_image_cost_usd %}{% if c.per_image_cost_usd < 0.01 %}under $0.01 per image{% else %}≈ ${{ '%.2f' % c.per_image_cost_usd }} per image{% endif %}{% endif %}
     </span>
     <button type="submit" title="Send (Ctrl+Enter)">Send</button>

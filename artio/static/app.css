@@ -649,6 +649,11 @@ main.chat {
   gap: 0.6rem;
 }
 
+/* Shape and resolution sit side by side on a wide screen; Pico makes every fieldset full width. */
+.composer-row .pills {
+  width: auto;
+}
+
 .composer-row button {
   width: auto;
   margin: 0 0 0 auto;

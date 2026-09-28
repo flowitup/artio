@@ -1,5 +1,6 @@
 // Small progressive enhancements. Every page works without this file; it only adds:
-// the phone menu toggle, opening a chat at its latest turn, and Ctrl/Cmd+Enter to send.
+// the phone menu toggle, opening a chat at its latest turn, Ctrl/Cmd+Enter to send, and re-pricing
+// the composer's cost estimate when its size or resolution changes.
 (function () {
   "use strict";
 
@@ -32,6 +33,24 @@
           event.preventDefault();
           composer.requestSubmit();
         }
+      });
+    }
+
+    // The server prices the size the composer opened with; picking another shape or resolution
+    // scales that estimate by pixel count, the same way the server does.
+    var estimate = composer.querySelector(".estimate[data-per-megapixel]");
+    if (estimate) {
+      var perMegapixel = parseFloat(estimate.dataset.perMegapixel);
+      var sizes = JSON.parse(estimate.dataset.sizes);
+      composer.addEventListener("change", function (event) {
+        if (event.target.name !== "preset" && event.target.name !== "tier") return;
+        var shape = composer.querySelector('input[name="preset"]:checked');
+        var tier = composer.querySelector('input[name="tier"]:checked');
+        var size = shape && sizes[shape.value + "|" + (tier ? tier.value : "")];
+        if (!size) return;
+        var cost = perMegapixel * size[0] * size[1] / 1e6;
+        estimate.textContent = cost < 0.01 ? "under $0.01 per image" : "≈ $" + cost.toFixed(2) + " per image";
+        estimate.title = size[0] + "×" + size[1];
       });
     }
   }
