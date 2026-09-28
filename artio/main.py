@@ -105,6 +105,9 @@ def create_app(
     templates = Jinja2Templates(directory=_TEMPLATES_DIR)
     templates.env.filters["localtime"] = _localtime_filter(ZoneInfo(settings.timezone))
     templates.env.globals["artio_release"] = __version__
+    # Appended to every /static URL as ?v=, so each deploy (a new commit SHA) gets fresh URLs and no
+    # browser or Cloudflare cache can pair new pages with an old stylesheet or script.
+    templates.env.globals["asset_version"] = settings.version
     app.state.templates = templates
 
     # Registration order controls middleware nesting (Starlette wraps the most-recently-added
