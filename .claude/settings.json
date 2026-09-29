@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__github",
+      "mcp__github__*",
+      "mcp__plugin_engineering_github",
+      "mcp__plugin_engineering_github__*",
+      "Bash(git *)",
+      "Bash(gh *)"
+    ]
+  }
+}
