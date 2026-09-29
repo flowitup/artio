@@ -129,7 +129,7 @@ database are gone; anything worth keeping must be downloaded from the gallery ah
 
 ## Deploy
 
-Every push to `main` builds a digest-pinned image and deploys it to `folio-prod-1` through a single,
+Every push to `master` builds a digest-pinned image and deploys it to `folio-prod-1` through a single,
 purpose-restricted SSH key (`restrict,command="/opt/artio/deploy.sh"`). The deploy step validates the
 pulled image's revision label, declared volumes and size before touching anything running, applies it
 inside a transient systemd unit (so a dropped connection can't interrupt it), and requires `/healthz`

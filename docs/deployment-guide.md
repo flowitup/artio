@@ -235,7 +235,7 @@ The private repository exists, and its history up to the web UI is pushed. On 20
 owner's login email was purged from that history with a rewrite and a force-push. GitHub may
 still serve the old, now unreferenced commits by ID until it garbage-collects them.
 
-The `production` environment exists, and only the `main` branch may deploy to it. There are no
+The `production` environment exists, and only the `master` branch may deploy to it. There are no
 repository-level secrets. Its secrets:
 
 - `HETZNER_HOST` and `HETZNER_KNOWN_HOSTS`: set. The host key was checked against the fingerprint
@@ -386,7 +386,7 @@ host reboot specifically; it is accepted as a residual risk rather than solved b
 
 ## Deploying
 
-Every push to `main` runs the tests, builds `ghcr.io/flowitup/artio`, and deploys the exact
+Every push to `master` runs the tests, builds `ghcr.io/flowitup/artio`, and deploys the exact
 resulting image digest to the server through the restricted key described above. The deploy
 step validates the image's revision label against the commit SHA, its declared volumes and
 its size before touching anything running. The size is checked twice. The first check, before
@@ -441,7 +441,7 @@ underneath whatever manual work is in progress. `start` is what clears the marke
 so once the container has come back up healthy.
 
 Before any procedure that needs Artio to stay down for a while (for example, manual work on
-the data volume), also disable the deploy workflow itself, so a push to `main`
+the data volume), also disable the deploy workflow itself, so a push to `master`
 during the window can't even queue a deploy attempt:
 
 ```bash
@@ -583,7 +583,7 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
     and dispatch to the recycled backend.
   - If a backend keeps recycling itself, check `modal app logs qwen21-uc` for what ComfyUI was doing
     when it stopped answering (an out-of-memory crash, a bad model file, a Modal-side failure).
-    Redeploy once the underlying issue is understood (`gh workflow run deploy-modal.yml --ref main`),
+    Redeploy once the underlying issue is understood (`gh workflow run deploy-modal.yml --ref master`),
     which also resets the autoscaler.
   - An occasional false trip (a one-off timeout, or a real but transient ComfyUI error) is expected
     to be rare; if it recurs without a real underlying cause, raise the breaker's 3-failure
