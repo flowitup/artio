@@ -1,0 +1,35 @@
+# Manual: recreates the GitHub release v<version> (pyproject.toml) at the current master commit, with
+# notes regenerated from every merged PR. Use it when the version was not bumped but the release page
+# should catch up with what is deployed. The release job in deploy.yml only ever creates a release the
+# first time a version ships. This deletes the existing release and its tag first; images are tagged
+# by commit SHA and `latest`, never by the version tag, so nothing deployed depends on that tag.
+name: Recreate release
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+concurrency: {group: rerelease-artio, cancel-in-progress: false}
+
+jobs:
+  rerelease:
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions: {contents: write}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: {persist-credentials: false}
+
+      - name: Recreate the release at this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ github.sha }}
+        run: |
+          version=$(python3 -c 'import tomllib; print(tomllib.load(open("pyproject.toml", "rb"))["project"]["version"])')
+          [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "bad version: $version"; exit 1; }
+          if gh release view "v$version" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release delete "v$version" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          fi
+          gh release create "v$version" --repo "$GITHUB_REPOSITORY" --target "$SHA" \
+            --title "Artio v$version" --generate-notes --latest

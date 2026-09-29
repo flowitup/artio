@@ -1,10 +1,10 @@
-# Redeploys the Modal backend whenever modal/** changes on main, or on manual dispatch. The Modal
+# Redeploys the Modal backend whenever modal/** changes on master, or on manual dispatch. The Modal
 # token is scoped to the single `modal deploy` step; the test job never sees it.
 name: Deploy Modal
 
 on:
   push:
-    branches: [main]
+    branches: [master]
     paths: [modal/**]
   workflow_dispatch:
 
@@ -34,7 +34,7 @@ jobs:
 
   deploy:
     needs: test
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     environment: production

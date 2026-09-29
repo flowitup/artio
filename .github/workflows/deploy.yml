@@ -1,14 +1,14 @@
-# Pushing to main tests, builds ghcr.io/flowitup/artio and deploys the exact resulting digest to
+# Pushing to master tests, builds ghcr.io/flowitup/artio and deploys the exact resulting digest to
 # folio-prod-1 through the forced-command SSH key, then relies on deploy.sh's own health check
 # (version + live worker loops) with automatic rollback. See docs/deployment-guide.md.
 #
-# A workflow_dispatch from a branch other than main runs the `test` job's `if` to false; since
+# A workflow_dispatch from a branch other than master runs the `test` job's `if` to false; since
 # `build` and `deploy` both depend on it transitively, the whole pipeline no-ops.
 name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   workflow_dispatch:
 
 permissions: {}
@@ -16,7 +16,7 @@ concurrency: {group: deploy-artio, cancel-in-progress: false}
 
 jobs:
   test:
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/master'
     uses: ./.github/workflows/ci.yml   # its job sets its own timeout; a calling job may not
     permissions:
       contents: read
