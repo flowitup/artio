@@ -35,7 +35,7 @@ if not URL and not DRYRUN:
 
 try:
     e = json.load(sys.stdin)
-except Exception:
+except (OSError, ValueError):
     sys.exit(0)
 
 # Read-only tools are skipped to keep the channel readable; remove names to see everything.
@@ -92,8 +92,8 @@ def who(ev):
 
 def output_tail(tr):
     out = f"{tr.get('stdout') or ''}\n{tr.get('stderr') or ''}" if isinstance(tr, dict) else str(tr or "")
-    tail = [l for l in out.splitlines() if l.strip()][-3:]
-    return [esc(clean(l, 150)) for l in tail]
+    tail = [line for line in out.splitlines() if line.strip()][-3:]
+    return [esc(clean(line, 150)) for line in tail]
 
 
 def edit_text(tool, ti):
@@ -232,7 +232,7 @@ with open(spool, "a") as f:
     try:
         with open(state_path) as sf:
             st = json.load(sf)
-    except Exception:
+    except (OSError, ValueError):
         st = {}
     now = time.time()
     if kind == "prompt" or not st:
@@ -305,7 +305,7 @@ def post(payload):
             if err.code != 429:
                 return
             time.sleep(float(err.headers.get("Retry-After") or 2))
-        except Exception:
+        except (OSError, ValueError):  # network errors (URLError is an OSError) or a malformed URL
             return
 
 
