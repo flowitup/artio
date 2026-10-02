@@ -23,7 +23,7 @@ Access identity, either the owner's own email or the Claude plugin's service tok
   (`/api/v1`) the plugin's service token can reach and nothing else.
 
 **There are no backups.** The owner decided on 2026-09-27 that Artio keeps no copy beyond its own
-data volume: if it is lost, the images and the database are gone. Download anything worth keeping
+data folder on the server's disk: if it is lost, the images and the database are gone. Download anything worth keeping
 from the gallery.
 
 ## Local development

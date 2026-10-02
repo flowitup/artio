@@ -3,7 +3,7 @@
 Artio is one FastAPI service (a single uvicorn worker), HTMX for the owner's browser UI, SQLite for
 all state, and Modal for GPU rendering. It runs in a confined Docker container on `folio-prod-1`
 (shared with Folio, cdn and LearnFlow) and is published at `artio.flowitup.com` through Cloudflare's
-existing tunnel and Access. There are no backups: the data volume holds the only copy of the images
+existing tunnel and Access. There are no backups: the data folder on the server's disk holds the only copy of the images
 and the database (owner decision, 2026-09-27).
 
 ## Components
@@ -118,13 +118,13 @@ status; it has no path to warm or stop anything.
 Images live under `data_dir/images/YYYY/MM/job-<id>.png` (as Modal returned them) plus a normalized
 WebP thumbnail; paths are always resolved back under `data_dir` before any read, write or delete
 (`storage.resolve_under`), so a corrupted row or a planted symlink can never escape it. The disk guard
-(`storage.disk_status`) refuses a new batch when the volume's free space drops under a floor
+(`storage.disk_status`) refuses a new batch when the disk's free space drops under a floor
 (`ARTIO_MIN_FREE_GB`) or stored image bytes reach a cap (`ARTIO_DATA_CAP_GB`), both configurable
 and shown in the header on every page.
 
 **There are no backups.** The owner decided on 2026-09-27 that Artio keeps no copy beyond its own
-data volume: the originally planned restic-to-R2 pipeline, weekly verify, restore runbook and purge
-procedure were dropped along with that phase. If the volume is lost or deleted, the images and the
+data folder: the originally planned restic-to-R2 pipeline, weekly verify, restore runbook and purge
+procedure were dropped along with that phase. If the disk or the folder is lost, the images and the
 database are gone; anything worth keeping must be downloaded from the gallery ahead of time.
 
 ## Deploy
