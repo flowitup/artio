@@ -2,19 +2,29 @@
 """Claude Code settings hook: stream a session's steps to Slack as formatted Block Kit
 messages, so Projects threads can be followed live.
 
-What a Slack message shows:
-- a header line: repo · thread id · time range of the batch
+Two ways to send; set them only in the cloud environment (with neither set the hook does nothing):
+
+- Slack bot, THREAD_LOG_BOT=1: each project posts to its own channel, #claude-<repo folder>
+  (THREAD_LOG_CHANNEL overrides the name). When that channel is missing or the bot is not in it,
+  messages go to THREAD_LOG_FALLBACK_CHANNEL (default claude-threads). Each session is one Slack
+  thread: the parent message shows the first prompt and a status updated after every turn, and the
+  steps are the replies (THREAD_LOG_THREADS=0 posts them straight in the channel instead). The bot
+  token is added by the cloud environment's API credential (Bearer, for slack.com), so the session
+  never sees it; for a local test THREAD_LOG_SLACK_TOKEN can carry it instead.
+- Incoming webhook, THREAD_LOG_WEBHOOK=<url>: everything goes to the webhook's one channel.
+
+What a message shows:
 - one card per agent (main thread, or each subagent with its own colour), with a status
   (⏳ running / ✅ done / ⚠️ error) and its steps: commands in `code`, the last lines of
   output as a quote, edited files with +/- line counts
 - at the end of each turn, a summary: duration, commands, files, subagents, errors
 
 Steps are spooled and sent in batches every few seconds by one background flusher, so many
-parallel subagents don't trip Slack's ~1 message/second webhook limit.
+parallel subagents stay under Slack's ~1 message/second limit.
 
-Does nothing unless THREAD_LOG_WEBHOOK is set (set it only in the cloud environment).
-THREAD_LOG_DRYRUN=1 prints the Slack payload for the event instead of sending it.
-THREAD_LOG_FLUSH_SECONDS sets the batch interval (default 2).
+Other settings: THREAD_LOG_DRYRUN=1 prints the Slack payload for the event instead of sending it;
+THREAD_LOG_FLUSH_SECONDS sets the batch interval (default 2); THREAD_LOG_TZ (e.g. Europe/Paris)
+sets the time zone of the timestamps (default: the machine's).
 """
 import fcntl
 import json
@@ -24,13 +34,19 @@ import sys
 import tempfile
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 import zlib
+from datetime import datetime
 
-URL = os.environ.get("THREAD_LOG_WEBHOOK")
+WEBHOOK = os.environ.get("THREAD_LOG_WEBHOOK")
+BOT = os.environ.get("THREAD_LOG_BOT") == "1"
+TOKEN = os.environ.get("THREAD_LOG_SLACK_TOKEN")
+API = os.environ.get("THREAD_LOG_API", "https://slack.com/api").rstrip("/")
+THREADS = os.environ.get("THREAD_LOG_THREADS", "1") != "0"
 DRYRUN = os.environ.get("THREAD_LOG_DRYRUN") == "1"
 FLUSH = float(os.environ.get("THREAD_LOG_FLUSH_SECONDS", "2"))
-if not URL and not DRYRUN:
+if not (BOT or WEBHOOK or DRYRUN):
     sys.exit(0)
 
 try:
@@ -78,6 +94,17 @@ def duration(sec):
 
 def lines_of(s):
     return len(str(s or "").splitlines()) or (1 if s else 0)
+
+
+def clock():
+    tz = os.environ.get("THREAD_LOG_TZ")
+    if tz:
+        try:
+            from zoneinfo import ZoneInfo
+            return datetime.now(ZoneInfo(tz)).strftime("%H:%M:%S")
+        except (ImportError, KeyError, ValueError):  # unknown zone (ZoneInfoNotFoundError is a KeyError)
+            pass
+    return time.strftime("%H:%M:%S")
 
 
 # ---------- one hook event -> one log entry ----------
@@ -153,20 +180,19 @@ def section(text):
     return {"type": "section", "text": {"type": "mrkdwn", "text": text}}
 
 
-def build_payloads(items, repo, sid):
-    t0, t1 = items[0].get("t", ""), items[-1].get("t", "")
-    span = t0 if t0 == t1 else f"{t0} → {t1}"
-    short = re.sub(r"^(cse_|session_)", "", sid)[:8]
-    head = {"type": "context", "elements": [
-        {"type": "mrkdwn", "text": f"📂 *{esc(repo)}*  ·  thread `{esc(short)}`  ·  🕒 {span}"}]}
+def context(text):
+    return {"type": "context", "elements": [{"type": "mrkdwn", "text": text}]}
 
-    groups, ends = {}, []
+
+def short_id(sid):
+    return re.sub(r"^(cse_|session_)", "", sid)[:8]
+
+
+def step_blocks(items):
+    """One card per agent with its steps, in order of first appearance."""
+    groups = {}
     for it in items:
-        if it["kind"] == "turn_end":
-            ends.append(it)
-        else:
-            groups.setdefault(it["who"], []).append(it)
-
+        groups.setdefault(it["who"], []).append(it)
     blocks = []
     for key, its in groups.items():
         kinds = {it["kind"] for it in its}
@@ -191,24 +217,38 @@ def build_payloads(items, repo, sid):
             else:
                 text += "\n" + row
         blocks.append(section(text))
+    return blocks
 
+
+def summary_blocks(it):
+    s = it.get("stats") or {}
+    parts = [f"⌨️ {s.get('cmds', 0)} lệnh", f"✏️ {s.get('files', 0)} file", f"🤖 {s.get('subagents', 0)} subagent"]
+    parts.append(f"❌ {s['errors']} lỗi" if s.get("errors") else "✓ không lỗi")
+    return [section(f"🏁 *Lượt xong* sau *{duration(s.get('secs', 0))}*"), context("   ·   ".join(parts))]
+
+
+def build_payloads(items, repo, sid, in_thread=False):
+    """Slack messages for a batch. In a session thread the repo/thread header is left out,
+    since the parent message already shows it."""
+    steps = [it for it in items if it["kind"] != "turn_end"]
+    ends = [it for it in items if it["kind"] == "turn_end"]
+    blocks = step_blocks(steps)
     for it in ends:
-        s = it.get("stats") or {}
         if blocks:
             blocks.append({"type": "divider"})
-        blocks.append(section(f"🏁 *Lượt xong* sau *{duration(s.get('secs', 0))}*"))
-        parts = [f"⌨️ {s.get('cmds', 0)} lệnh", f"✏️ {s.get('files', 0)} file",
-                 f"🤖 {s.get('subagents', 0)} subagent"]
-        parts.append(f"❌ {s['errors']} lỗi" if s.get("errors") else "✓ không lỗi")
-        blocks.append({"type": "context", "elements": [
-            {"type": "mrkdwn", "text": "   ·   ".join(parts)}]})
-
-    steps = sum(len(v) for v in groups.values())
-    fallback = f"{repo} · {short}: " + (f"{steps} bước" if steps else "") + (" · lượt xong" if ends else "")
-    payloads, per_msg = [], 46  # Slack allows 50 blocks per message
-    for i in range(0, max(len(blocks), 1), per_msg):
-        payloads.append({"text": fallback, "blocks": [head] + blocks[i:i + per_msg]})
-    return payloads
+        blocks.extend(summary_blocks(it))
+    if not blocks:
+        return []
+    short = short_id(sid)
+    head = []
+    if not in_thread:
+        t0, t1 = items[0].get("t", ""), items[-1].get("t", "")
+        span = t0 if t0 == t1 else f"{t0} → {t1}"
+        head = [context(f"📂 *{esc(repo)}*  ·  thread `{esc(short)}`  ·  🕒 {span}")]
+    fallback = (f"{repo} · {short}: " + (f"{len(steps)} bước" if steps else "")
+                + (" · lượt xong" if ends else ""))
+    per_msg = 49 - len(head)  # Slack allows 50 blocks per message
+    return [{"text": fallback, "blocks": head + blocks[i:i + per_msg]} for i in range(0, len(blocks), per_msg)]
 
 
 # ---------- record this event ----------
@@ -218,10 +258,12 @@ if desc is None:
     sys.exit(0)
 kind, text, out = desc
 key, label = who(e)
-entry = {"who": key, "label": label, "t": time.strftime("%H:%M:%S"), "kind": kind, "text": text, "out": out}
+entry = {"who": key, "label": label, "t": clock(), "kind": kind, "text": text, "out": out}
 
 sid = re.sub(r"[^A-Za-z0-9_-]", "", str(e.get("session_id", "")))[:40] or "nosession"
 repo = os.path.basename(str(e.get("cwd", "")).rstrip("/")) or "?"
+CHANNEL = (os.environ.get("THREAD_LOG_CHANNEL") or f"claude-{repo}").lstrip("#")
+FALLBACK = os.environ.get("THREAD_LOG_FALLBACK_CHANNEL", "claude-threads").lstrip("#")
 base = os.path.join(tempfile.gettempdir(), "thread-log-dry" if DRYRUN else "thread-log")
 os.makedirs(base, exist_ok=True)
 spool = os.path.join(base, f"{sid}.spool")
@@ -261,7 +303,10 @@ with open(spool, "a") as f:
         f.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 if DRYRUN:
-    print(json.dumps(build_payloads([entry], repo, sid), ensure_ascii=False, indent=1))
+    payloads = build_payloads([entry], repo, sid)
+    if BOT:
+        payloads = [dict(p, channel=CHANNEL) for p in payloads]
+    print(json.dumps(payloads, ensure_ascii=False, indent=1))
     sys.exit(0)
 
 # ---------- become the flusher unless one is already running ----------
@@ -294,11 +339,28 @@ def take():
     return items
 
 
-def post(payload):
+def read_json(path):
+    try:
+        with open(path) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def write_json(path, data):
+    tmp = f"{path}.{os.getpid()}.tmp"
+    with open(tmp, "w") as f:
+        json.dump(data, f, ensure_ascii=False)
+    os.replace(tmp, path)
+
+
+# ---------- incoming webhook ----------
+
+def post_webhook(payload):
     body = json.dumps(payload).encode()
     for _ in range(4):
         try:
-            req = urllib.request.Request(URL, body, {"Content-Type": "application/json"})
+            req = urllib.request.Request(WEBHOOK, body, {"Content-Type": "application/json"})
             urllib.request.urlopen(req, timeout=8)
             return
         except urllib.error.HTTPError as err:
@@ -309,14 +371,151 @@ def post(payload):
             return
 
 
+def flush_webhook(items):
+    for i, payload in enumerate(build_payloads(items, repo, sid)):
+        if i:
+            time.sleep(1.1)
+        post_webhook(payload)
+
+
+# ---------- Slack bot (Web API) ----------
+
+CHANNELS = os.path.join(base, "channels.json")  # channel name -> id, shared by the sessions on this machine
+THREAD = os.path.join(base, f"{sid}.slack")  # this session's channel, parent message and turn count
+MOVED = {"channel_not_found", "not_in_channel", "is_archived"}
+last_post = [0.0]
+
+
+def slack(method, payload=None, query=None):
+    """Call a Slack Web API method; return its JSON reply, or None when it could not be reached."""
+    url = f"{API}/{method}" + (f"?{urllib.parse.urlencode(query)}" if query else "")
+    headers = {"Content-Type": "application/json; charset=utf-8"}
+    if TOKEN:
+        headers["Authorization"] = f"Bearer {TOKEN}"
+    body = json.dumps(payload).encode() if payload is not None else None
+    for _ in range(4):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, body, headers), timeout=8) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as err:
+            if err.code != 429:
+                return None
+            time.sleep(float(err.headers.get("Retry-After") or 2))
+        except (OSError, ValueError):  # network errors, or a reply that is not JSON
+            return None
+    return None
+
+
+def find_channel(name):
+    """Channel id for a name the bot can see (public, or private with the bot in it)."""
+    if re.fullmatch(r"[CG][A-Z0-9]{8,}", name):
+        return name
+    cache = read_json(CHANNELS)
+    if name in cache:
+        return cache[name]
+    cursor = ""
+    for _ in range(20):
+        r = slack("conversations.list", query={"types": "public_channel,private_channel",
+                                               "exclude_archived": "true", "limit": 200, "cursor": cursor})
+        if not r or not r.get("ok"):
+            return None
+        for c in r.get("channels") or []:
+            if c.get("name") == name:
+                cache[name] = c["id"]
+                write_json(CHANNELS, cache)
+                return c["id"]
+        cursor = (r.get("response_metadata") or {}).get("next_cursor")
+        if not cursor:
+            return None
+    return None
+
+
+def forget_channel(cid):
+    cache = read_json(CHANNELS)
+    write_json(CHANNELS, {k: v for k, v in cache.items() if v != cid})
+
+
+def post(th, payload, reply=True):
+    """Post a message in the session's channel, as a reply in its thread when it has one.
+    Returns the message ts, or None."""
+    for _ in range(2):
+        if not th.get("channel"):
+            th["channel"] = find_channel(CHANNEL) or find_channel(FALLBACK)
+            if not th["channel"]:
+                return None
+        msg = dict(payload, channel=th["channel"], unfurl_links=False, unfurl_media=False)
+        if reply and th.get("ts"):
+            msg["thread_ts"] = th["ts"]
+        wait = last_post[0] + 1.1 - time.time()  # chat.postMessage: about 1 message/second per channel
+        if wait > 0:
+            time.sleep(wait)
+        r = slack("chat.postMessage", msg)
+        last_post[0] = time.time()
+        if r and r.get("ok"):
+            return r.get("ts")
+        if not r or r.get("error") not in MOVED:
+            return None
+        # The channel is gone, archived or the bot was removed: carry on in the fallback channel.
+        forget_channel(th["channel"])
+        fallback = find_channel(FALLBACK)
+        th["channel"] = fallback if fallback != th["channel"] else None
+        th["ts"] = None  # the thread stayed in the old channel; the next batch starts a new one
+        if not th["channel"]:
+            return None
+    return None
+
+
+def parent_payload(th, status):
+    short = short_id(sid)
+    prompt = th.get("prompt") or "💬 _(phiên đã chạy trước khi bật log)_"
+    head = f"📂 *{esc(repo)}*  ·  thread `{esc(short)}`  ·  🕒 {th.get('start', '')}  ·  {status}"
+    return {"text": f"{repo} · {short}: {status}", "blocks": [section(prompt), context(head)]}
+
+
+def set_status(th, status):
+    if th.get("ts") and th.get("channel"):
+        slack("chat.update", dict(parent_payload(th, status), channel=th["channel"], ts=th["ts"]))
+
+
+def flush_bot(items):
+    th = read_json(THREAD)
+    if not THREADS:
+        for payload in build_payloads(items, repo, sid):
+            post(th, payload, reply=False)
+        write_json(THREAD, th)
+        return
+    steps = [it for it in items if it["kind"] != "turn_end"]
+    ends = [it for it in items if it["kind"] == "turn_end"]
+    if not th.get("ts"):
+        first = next((it for it in steps if it["kind"] == "prompt"), None)
+        if first and "prompt" not in th:  # the first prompt becomes the parent message
+            th["prompt"] = first["text"]
+            steps.remove(first)
+        th.setdefault("start", (first or items[0])["t"])
+        th["ts"] = post(th, parent_payload(th, "⏳ đang chạy"), reply=False)
+        th["running"] = True
+    elif not th.get("running") and any(it["kind"] == "prompt" for it in steps):
+        set_status(th, "⏳ đang chạy")
+        th["running"] = True
+    for payload in build_payloads(steps + ends, repo, sid, in_thread=bool(th.get("ts"))):
+        post(th, payload)
+    for it in ends:
+        s = it.get("stats") or {}
+        th["turns"] = th.get("turns", 0) + 1
+        icon = "⚠️" if s.get("errors") else "✅"
+        set_status(th, f"{icon} xong lượt {th['turns']} lúc {it['t']} ({duration(s.get('secs', 0))})")
+        th["running"] = False
+    write_json(THREAD, th)
+
+
 while True:
     time.sleep(FLUSH)
     items = take()
     if items:
-        for i, payload in enumerate(build_payloads(items, repo, sid)):
-            if i:
-                time.sleep(1.1)
-            post(payload)
+        if BOT:
+            flush_bot(items)
+        else:
+            flush_webhook(items)
         continue
     # Nothing left: step down, then catch an entry that arrived while we still held the lock.
     fcntl.flock(lock_fd, fcntl.LOCK_UN)
