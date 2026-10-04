@@ -70,6 +70,14 @@ def summarize_input(tool, ti):
     return None
 
 
+def resolve_info(tool, ti):
+    """Claude Projects' set_thread_resolved: which thread (None = the caller's own) and whether it is now resolved."""
+    if not isinstance(tool, str) or not tool.endswith("set_thread_resolved") or not isinstance(ti, dict):
+        return None
+    thread = ti.get("thread_id")
+    return {"resolved": ti.get("resolved") is not False, "thread_id": thread if isinstance(thread, str) else None}
+
+
 def ship_transcript(sid, tp):
     if not tp or not os.path.exists(tp):
         return
@@ -121,7 +129,8 @@ def main():
         "subagent_type": (p.get("tool_input") or {}).get("subagent_type") if tool in ("Task", "Agent") else None,
         "stop_reason": p.get("stop_reason"),                     # SubagentStop
         "last_message": (p.get("last_assistant_message") or "")[:300] or None if ev == "SubagentStop" else None,
-        "v": 2,  # this hook reports SubagentStart; the server then tracks subagents by id
+        "v": 3,  # v2: reports SubagentStart, so the server tracks subagents by id; v3: reports thread resolves
+        "resolve": resolve_info(tool, p.get("tool_input")) if ev == "PostToolUse" else None,
         "reason": p.get("reason"),                               # SessionEnd
         "branch": branch(p.get("cwd")),
         "where": "cloud" if os.environ.get("CLAUDE_CODE_REMOTE") == "true" else "local",
