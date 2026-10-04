@@ -17,7 +17,7 @@ Artio's files never mix with Folio's, cdn's or LearnFlow's:
 | `/opt/artio/.env` | Runtime secrets and configuration | `root:root`, 0600 |
 | `/opt/artio/current-tag` | The image tag the running container was started with | written only by `deploy.sh` |
 | `/opt/artio/previous-tag` | The image tag to fall back to on a manual rollback | written only by `deploy.sh` |
-| `/mnt/artio-data` | The dedicated 50 GB data volume, mounted by UUID with `nofail` | `10001:10001`, 0750 |
+| `/mnt/artio-data` | Artio's data folder, a plain directory on the server's root disk (it was a dedicated 50 GB volume until 2026-09-29) | `10001:10001`, 0750 |
 | `/mnt/artio-data/.artio-volume` | Sentinel file; the app refuses to start in production without it. It was `.atelier-volume` before the rename to Artio, and was renamed with the app. | `10001:10001` |
 
 The container itself runs as uid 10001, with a read-only root filesystem, all capabilities
@@ -207,23 +207,34 @@ account's plan allows; Modal stops billable workloads once the workspace reaches
 workspace held no proxy-auth tokens from the legacy endpoint, so there was nothing to revoke
 there.
 
-### Hetzner data volume — mounted
+### Data folder — on the root disk
 
-A 50 GB volume (Hetzner volume ID **106963035**, `/dev/sdb`) is attached to `folio-prod-1`. It
-was formatted as ext4 (label `artio-data`) on 2026-09-26 and is mounted at
-`/mnt/artio-data`.
+Artio's data lives in `/mnt/artio-data`, a plain directory on the server's root disk (`/dev/sda1`,
+75 GB, shared with Folio, cdn and LearnFlow). It held 102 MB of images and a 288 KB database when it
+was moved, so it does not need a volume of its own.
 
-- `/etc/fstab` has one added line, keyed by UUID, with `defaults,nofail,noatime 0 2`. A
-  detached volume therefore never blocks the host's boot, and it can be reattached and mounted
-  later without a reboot. The file was backed up first as `/etc/fstab.bak-20260926T215130Z`.
-- The mount root, `images/` and `backup/` belong to uid 10001 with mode 0750, and the sentinel
-  file `.artio-volume` is present.
-- The app refuses to start without the sentinel, so an accidentally empty mount point can
-  never be mistaken for real data.
-- **No backups.** The owner decided on 2026-09-27 that Artio has no backups. This volume holds
-  the only copy of the images and the database, and Hetzner's server backups and snapshots don't
-  include volumes. If the volume is lost or deleted, the images are gone, so download anything
-  worth keeping from the gallery. The empty `backup/` directory is unused.
+History: from 2026-09-26 the folder was the mount point of a 50 GB Hetzner volume (ID
+**106963035**, ext4, label `artio-data`). On 2026-09-29 the owner decided Artio is used too little to
+pay for that, and the data was copied onto the root disk with Artio stopped. The copy was checked
+byte for byte with `rsync -anc` before the volume was unmounted, and the volume was left attached and
+untouched as a fallback until the owner deletes it in the Hetzner console.
+
+- The `/mnt/artio-data` line in `/etc/fstab` is commented out, so a reboot never remounts the old
+  volume over the data. The fstab before the change is `/etc/fstab.bak-20260929T130425Z`.
+- The folder, `images/` and `backup/` belong to uid 10001 with mode 0750, and the sentinel file
+  `.artio-volume` is present.
+- The app refuses to start without the sentinel, so an accidentally empty folder can never be
+  mistaken for real data.
+- `ARTIO_DATA_CAP_GB` is 3 (was 40) and `ARTIO_MIN_FREE_GB` stays 5. The floor matters more now,
+  because the root disk is shared: Artio stops taking new jobs when the disk runs low, before it can
+  crowd out the other sites. The `.env` before the change is `/opt/artio/.env.bak-20260929T130644Z`.
+- **No backups.** The owner decided on 2026-09-27 that Artio has no backups. This folder holds
+  the only copy of the images and the database. If the disk is lost, the images are gone, so
+  download anything worth keeping from the gallery. The empty `backup/` directory is unused.
+- **Rollback** (only while the old volume still exists): `deploy.sh stop`, restore
+  `/etc/fstab.bak-20260929T130425Z`, `mv /mnt/artio-data /mnt/artio-data.root-copy && mkdir
+  /mnt/artio-data && mount -a`, put `ARTIO_DATA_CAP_GB=40` back in `.env`, `deploy.sh start`.
+  Anything Artio wrote after the move stays in `/mnt/artio-data.root-copy`.
 
 Ubuntu 26.04 ships uutils coreutils, whose `install` rejects a numeric owner such as 10001 that
 has no account on the host. Create Artio's directories with `mkdir` and then
@@ -257,7 +268,7 @@ before the pull ran on the host through `docker manifest inspect`. Checks afterw
 - `deploy.sh status`: the container is healthy, and `/healthz` reports the deployed version with
   both worker loops `ok`. The image is 346 MB on the host.
 - The container runs as uid 10001, with a read-only root filesystem, every capability dropped,
-  `no-new-privileges`, only `127.0.0.1:8090`, the data volume at `/data` and a 768 MiB memory limit.
+  `no-new-privileges`, only `127.0.0.1:8090`, the data folder at `/data` and a 768 MiB memory limit.
 - Without a valid Access JWT the origin answers 403, both with no header and with a forged one.
 - From inside the container, the cloud metadata service and the host's own tailnet address are
   blocked, while the Modal API (with the runtime token) and the Access JWKS are reachable.
@@ -284,8 +295,8 @@ here — never values:
 | `ARTIO_CF_AUD` | The Access application's Audience tag, checked on every request |
 | `ARTIO_OWNER_EMAIL` | The one email the owner-only HTML routes accept |
 | `ARTIO_PLUGIN_CLIENT_ID` | The Claude plugin service token's `common_name`, accepted only on the API routes it's allowed to use |
-| `ARTIO_DATA_CAP_GB` | Image storage cap; the app refuses new generation jobs at or over this, defaults to 40 |
-| `ARTIO_MIN_FREE_GB` | Free-space floor on the volume; the app refuses new jobs below this, defaults to 5 |
+| `ARTIO_DATA_CAP_GB` | Image storage cap; the app refuses new generation jobs at or over this, defaults to 40 (production sets 3) |
+| `ARTIO_MIN_FREE_GB` | Free-space floor on the disk holding the data folder; the app refuses new jobs below this, defaults to 5 |
 | `ARTIO_TIMEZONE` | Timezone used for displayed timestamps |
 | `MODAL_TOKEN_ID`, `MODAL_TOKEN_SECRET` | The runtime Modal token (the dedicated one, not the CI one) |
 | `MODAL_ENVIRONMENT` | The Modal environment the app talks to (`main`) |
@@ -441,7 +452,7 @@ underneath whatever manual work is in progress. `start` is what clears the marke
 so once the container has come back up healthy.
 
 Before any procedure that needs Artio to stay down for a while (for example, manual work on
-the data volume), also disable the deploy workflow itself, so a push to `master`
+the data folder), also disable the deploy workflow itself, so a push to `master`
 during the window can't even queue a deploy attempt:
 
 ```bash
@@ -538,7 +549,7 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
   # remove the tunnel ingress rule via the replica method above
   # delete the artio.flowitup.com DNS record and the Access application in Cloudflare
   systemctl disable --now artio-egress.service
-  umount /mnt/artio-data   # the data itself stays on the volume; detach it in Hetzner if it's no longer needed
+  # the data stays in /mnt/artio-data on the root disk; delete that folder if it's no longer needed
   ```
 
 ## Routine operations
@@ -549,10 +560,16 @@ lines instead of adding them), and is also the tunnel half of full removal, belo
 - **Logs:** the deploy script logs to the system journal under the `artio-deploy` tag
   (`journalctl -t artio-deploy`); the container's own logs are size- and count-capped
   (`json-file`, 10 MB × 3 files) so they can't fill the disk.
-- **Image cleanup:** handled automatically by `deploy.sh` on every successful (and failed)
+- **Image cleanup:** `deploy.sh` handles Artio's own images on every successful (and failed)
   deploy, keeping the current tag, the previous tag and the newest other local tag, plus
-  sweeping this repository's own dangling images; nothing else is ever pruned automatically.
-- **Disk usage:** the app's own header shows usage against the volume's cap, and refuses new
+  sweeping this repository's own dangling images. Every Sunday at 05:30 a cron job
+  (`/etc/cron.d/docker-image-prune`) also removes unused Docker images older than 7 days from the
+  shared host, skipping any image labelled `org.opencontainers.image.source=https://github.com/flowitup/artio`
+  so Artio's rollback image is never deleted. It never touches volumes or running containers'
+  images, and logs before and after sizes to `journalctl -t docker-image-prune`. It was added on
+  2026-09-29 after 196 unused images (47 GB, only 6 in use) had filled the root disk to 74%; the
+  first cleanup brought it to 26%.
+- **Disk usage:** the app's own header shows usage against the cap, and refuses new
   generation jobs at or over the cap, or when free space drops under the floor; `df -h
   /mnt/artio-data` gives the underlying number directly.
 - **GPU status, warm-up and stop:** the header badge and `/gpu` show each backend's state (warm,
